@@ -60,6 +60,8 @@ contract CollectionFactory is ICollectionFactory, UUPSUpgradeable, OwnableUpgrad
 
     function setHinataStorage(address storage_) external onlyOwner {
         hinataStorage = storage_;
+        collections[0].collection = storage_;
+        collectionIds[storage_] = 0;
     }
 
     function setRoyaltyLimit(uint256 limit) external onlyOwner {
