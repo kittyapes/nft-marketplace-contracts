@@ -2,22 +2,26 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.15;
 
-import "@openzeppelin/contracts-upgradeable/token/ERC1155/presets/ERC1155PresetMinterPauserUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/token/ERC1155/extensions/ERC1155SupplyUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC1155/IERC1155ReceiverUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC20/IERC20Upgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC20/utils/SafeERC20Upgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/utils/StringsUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
 
 contract HinataStorage is
     Initializable,
-    ERC1155PresetMinterPauserUpgradeable,
+    ERC1155SupplyUpgradeable,
     IERC1155ReceiverUpgradeable,
+    AccessControlUpgradeable,
     UUPSUpgradeable
 {
     using StringsUpgradeable for uint256;
     using SafeERC20Upgradeable for IERC20Upgradeable;
+
+    bytes32 public constant MINTER_ROLE = keccak256("MINTER_ROLE");
 
     struct Collection {
         address owner;
@@ -46,7 +50,8 @@ contract HinataStorage is
         address _hinata,
         address _weth
     ) public initializer {
-        __ERC1155PresetMinterPauser_init("");
+        __ERC1155Supply_init();
+        __AccessControl_init();
         __UUPSUpgradeable_init();
 
         hinata = _hinata;
@@ -55,7 +60,9 @@ contract HinataStorage is
         for (uint256 i = 0; i < owners.length; ++i) {
             _setupRole(DEFAULT_ADMIN_ROLE, owners[i]);
         }
-        grantRole(MINTER_ROLE, hinata);
+        _setupRole(DEFAULT_ADMIN_ROLE, msg.sender);
+        _setupRole(MINTER_ROLE, msg.sender);
+        _setupRole(MINTER_ROLE, hinata);
     }
 
     function _authorizeUpgrade(address) internal override onlyAdmin {}
@@ -100,9 +107,24 @@ contract HinataStorage is
         }
     }
 
-    modifier canBeStoredWith128Bits(uint256 _value) {
-        require(_value < 340282366920938463463374607431768211455);
-        _;
+    function mint(
+        address to,
+        uint256 id,
+        uint256 amount,
+        bytes memory data
+    ) public {
+        require(hasRole(MINTER_ROLE, msg.sender), "Hinata: NO_MINTER_ROLE");
+        _mint(to, id, amount, data);
+    }
+
+    function mintBatch(
+        address to,
+        uint256[] memory ids,
+        uint256[] memory amounts,
+        bytes memory data
+    ) public {
+        require(hasRole(MINTER_ROLE, msg.sender), "Hinata: NO_MINTER_ROLE");
+        _mintBatch(to, ids, amounts, data);
     }
 
     function mintArtistNFT(
@@ -189,5 +211,18 @@ contract HinataStorage is
     ) external pure override returns (bytes4) {
         return
             bytes4(keccak256("onERC1155BatchReceived(address,address,uint256[],uint256[],bytes)"));
+    }
+
+    function supportsInterface(bytes4 interfaceId)
+        public
+        view
+        override(ERC1155Upgradeable, IERC165Upgradeable, AccessControlUpgradeable)
+        returns (bool)
+    {
+        return
+            interfaceId == type(IERC1155Upgradeable).interfaceId ||
+            interfaceId == type(IERC1155MetadataURIUpgradeable).interfaceId ||
+            interfaceId == type(IAccessControlUpgradeable).interfaceId ||
+            super.supportsInterface(interfaceId);
     }
 }
