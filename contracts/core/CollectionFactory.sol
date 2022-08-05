@@ -165,10 +165,6 @@ contract CollectionFactory is ICollectionFactory, UUPSUpgradeable, OwnableUpgrad
         }
     }
 
-    function isWhitelisted(address collection) external view override returns (bool) {
-        return collectionIds[collection] != 0 || collection == hinataStorage;
-    }
-
     function getCollection(address collection) external view override returns (Collection memory) {
         return collections[collectionIds[collection]];
     }

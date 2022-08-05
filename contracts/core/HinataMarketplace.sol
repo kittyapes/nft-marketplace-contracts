@@ -108,15 +108,6 @@ contract HinataMarketplace is
         _;
     }
 
-    modifier onlyWhitelistedCollections(address[] memory collections) {
-        for (uint256 i; i < collections.length; i += 1)
-            require(
-                factory.isWhitelisted(collections[i]),
-                "HinataMarket: NOT_WHITELISTED_COLLECTION"
-            );
-        _;
-    }
-
     function initialize(
         address[] memory owners,
         address factory_,
@@ -166,11 +157,7 @@ contract HinataMarketplace is
         erc20Token.safeTransfer(to, erc20Token.balanceOf(address(this)));
     }
 
-    function createListing(Listing memory listing)
-        external
-        onlyWhitelistedCollections(listing.collections)
-        nonReentrant
-    {
+    function createListing(Listing memory listing) external nonReentrant {
         require(!usedIDs[listing.id], "HinataMarket: ALREADY_USED_ID");
         require(acceptPayTokens[listing.payToken], "HinataMarket: INVALID_PAY_TOKEN");
         require(listing.reservePrice >= listing.price, "HinataMarket: RESERVE_PRICE_LOW");
