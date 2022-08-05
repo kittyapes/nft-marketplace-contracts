@@ -142,30 +142,6 @@ describe('Hinata Marketplace', function () {
   });
 
   describe('#createListing', () => {
-    it('revert if collection is not whitelisted', async () => {
-      const Hinata721Factory = await ethers.getContractFactory('Hinata721');
-      const nft = await Hinata721Factory.deploy(owner.address, '', '', '');
-
-      const listing = [
-        1,
-        constants.AddressZero,
-        payToken.address,
-        price,
-        price,
-        0,
-        0,
-        0,
-        ListingType.FIXED_PRICE,
-        [nft.address],
-        [1],
-        [10],
-      ];
-
-      await expect(market.connect(alice).createListing(listing)).to.revertedWith(
-        'HinataMarket: NOT_WHITELISTED_COLLECTION',
-      );
-    });
-
     it('revert if pay token is not accepted', async () => {
       const listing = [
         1,

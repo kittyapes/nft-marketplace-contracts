@@ -24,8 +24,6 @@ interface ICollectionFactory {
         bool is721
     );
 
-    function isWhitelisted(address collection) external view returns (bool);
-
     function getCollection(address collection) external view returns (Collection memory);
 
     function getCollectionRoyalties(address collection) external view returns (Royalty[] memory);
