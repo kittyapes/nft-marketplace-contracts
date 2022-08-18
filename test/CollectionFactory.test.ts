@@ -25,19 +25,13 @@ describe('Collection Factory', function () {
     storage = await upgrades.deployProxy(
       HinataStorageFactory,
       [[owner.address], Wallet.createRandom().address, Wallet.createRandom().address],
-      {
-        initializer: 'initialize(address[],address,address)',
-        kind: 'uups',
-      },
+      { initializer: 'initialize(address[],address,address)', kind: 'uups' },
     );
-    helper = await CollectionHelperFactory.deploy();
+    helper = await CollectionHelperFactory.deploy('');
     factory = await upgrades.deployProxy(
       CollectionFactory,
       [helper.address, storage.address, 9850],
-      {
-        initializer: 'initialize',
-        kind: 'uups',
-      },
+      { initializer: 'initialize', kind: 'uups' },
     );
   });
 
@@ -68,11 +62,9 @@ describe('Collection Factory', function () {
     });
   });
 
-  describe('#spawn', () => {
-    it('should spawn 721 collection successfully', async () => {
-      const tx = await factory
-        .connect(alice)
-        .spawn('Test', 'TEST', '', [alice.address], [10], true);
+  describe('#create', () => {
+    it('should create 721 collection successfully', async () => {
+      const tx = await factory.connect(alice).create('Test', 'TEST', [alice.address], [10], true);
       const receipt = await tx.wait();
       const nft = receipt.events[0].args.collection;
       expect(tx)
@@ -86,8 +78,8 @@ describe('Collection Factory', function () {
       expect(collection[3]).to.equal(true);
     });
 
-    it('should spawn 1155 collection successfully', async () => {
-      const tx = await factory.connect(alice).spawn('', '', '', [alice.address], [20], false);
+    it('should create 1155 collection successfully', async () => {
+      const tx = await factory.connect(alice).create('', '', [alice.address], [20], false);
       const receipt = await tx.wait();
       const nft = receipt.events[0].args.collection;
       expect(tx)

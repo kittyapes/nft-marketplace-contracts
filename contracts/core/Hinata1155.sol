@@ -11,6 +11,7 @@ contract Hinata1155 is ERC1155Supply {
     string public name;
     string public symbol;
     address public owner;
+    string public baseURI;
 
     modifier onlyOwner() {
         require(msg.sender == owner, "Hinata1155: NOT_OWNER");
@@ -20,12 +21,14 @@ contract Hinata1155 is ERC1155Supply {
     constructor(
         address owner_,
         string memory name_,
-        string memory symbol_
-    ) ERC1155("") {
+        string memory symbol_,
+        string memory uri_
+    ) ERC1155(uri_) {
         require(owner_ != address(0), "Hinata1155: INVALID_OWNER");
         owner = owner_;
         name = name_;
         symbol = symbol_;
+        baseURI = uri_;
     }
 
     function mint(
@@ -44,11 +47,15 @@ contract Hinata1155 is ERC1155Supply {
         _mintBatch(to, ids, amounts, "");
     }
 
+    function setBaseURI(string memory _baseURI) external onlyOwner {
+        baseURI = _baseURI;
+    }
+
     function uri(uint256 id) public view virtual override returns (string memory) {
         return
             (string)(
                 abi.encodePacked(
-                    "https://api.hinata.io/",
+                    baseURI,
                     Strings.toHexString(uint256(uint160(address(this))), 20),
                     "/",
                     id.toString()

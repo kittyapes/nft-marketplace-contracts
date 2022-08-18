@@ -38,27 +38,18 @@ describe('Hinata Marketplace', function () {
     storage = await upgrades.deployProxy(
       HinataStorageFactory,
       [[owner.address], hinata, weth.address],
-      {
-        initializer: 'initialize(address[],address,address)',
-        kind: 'uups',
-      },
+      { initializer: 'initialize(address[],address,address)', kind: 'uups' },
     );
-    const helper = await CollectionHelperFactory.deploy();
+    const helper = await CollectionHelperFactory.deploy('');
     factory = await upgrades.deployProxy(
       CollectionFactory,
       [helper.address, storage.address, 9850],
-      {
-        initializer: 'initialize',
-        kind: 'uups',
-      },
+      { initializer: 'initialize', kind: 'uups' },
     );
     market = await upgrades.deployProxy(
       HinataMarketplaceFactory,
       [[owner.address], factory.address, owner.address, 1000],
-      {
-        initializer: 'initialize',
-        kind: 'uups',
-      },
+      { initializer: 'initialize', kind: 'uups' },
     );
 
     await market.setAcceptPayToken(payToken.address, true);
@@ -77,10 +68,7 @@ describe('Hinata Marketplace', function () {
         upgrades.deployProxy(
           HinataMarketplaceFactory,
           [[owner.address], constants.AddressZero, owner.address, 1000],
-          {
-            initializer: 'initialize',
-            kind: 'uups',
-          },
+          { initializer: 'initialize', kind: 'uups' },
         ),
       ).to.revertedWith('HinataMarket: INVALID_FACTORY');
     });
@@ -91,10 +79,7 @@ describe('Hinata Marketplace', function () {
         upgrades.deployProxy(
           HinataMarketplaceFactory,
           [[owner.address], factory.address, owner.address, 10001],
-          {
-            initializer: 'initialize',
-            kind: 'uups',
-          },
+          { initializer: 'initialize', kind: 'uups' },
         ),
       ).to.revertedWith('HinataMarket: INVALID_FEE');
     });
@@ -552,7 +537,7 @@ describe('Hinata Marketplace', function () {
 
   describe('Royalties', () => {
     it('check royalty to external collections', async () => {
-      const tx = await factory.spawn('Test', 'TEST', '', [owner.address], [1000], true);
+      const tx = await factory.create('Test', 'TEST', [owner.address], [1000], true);
       const receipt = await tx.wait();
       const nft = receipt.events[0].args.collection;
       const Hinata721Factory = await ethers.getContractFactory('Hinata721');
@@ -600,14 +585,14 @@ describe('Hinata Marketplace', function () {
 
     it('check royalty to external collections for two owners', async () => {
       const Hinata721Factory = await ethers.getContractFactory('Hinata721');
-      let tx = await factory.spawn('Test', 'TEST', '', [owner.address], [2000], true);
+      let tx = await factory.create('Test', 'TEST', [owner.address], [2000], true);
       let receipt = await tx.wait();
       let nft = receipt.events[0].args.collection;
       const nftContract1 = await Hinata721Factory.attach(nft);
       await nftContract1.mint(alice.address);
       await nftContract1.connect(alice).approve(market.address, 1);
 
-      tx = await factory.connect(carol).spawn('Test', 'TEST', '', [carol.address], [1000], true);
+      tx = await factory.connect(carol).create('Test', 'TEST', [carol.address], [1000], true);
       receipt = await tx.wait();
       nft = receipt.events[0].args.collection;
       const nftContract2 = await Hinata721Factory.attach(nft);

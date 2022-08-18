@@ -9,8 +9,18 @@ import "./Hinata721.sol";
 import "./Hinata1155.sol";
 
 contract CollectionHelper is Ownable, Pausable {
+    string public baseURI;
+
+    constructor(string memory uri) {
+        baseURI = uri;
+    }
+
     function togglePause() external onlyOwner {
         paused() ? _unpause() : _pause();
+    }
+
+    function setBaseURI(string memory uri) external onlyOwner {
+        baseURI = uri;
     }
 
     function getType(address collection) external view returns (uint8) {
@@ -42,14 +52,13 @@ contract CollectionHelper is Ownable, Pausable {
         address owner,
         string memory name,
         string memory symbol,
-        string memory uri,
         bool is721
     ) external whenNotPaused returns (address) {
         if (is721) {
-            Hinata721 nft = new Hinata721(owner, name, symbol, uri);
+            Hinata721 nft = new Hinata721(owner, name, symbol, baseURI);
             return address(nft);
         } else {
-            Hinata1155 nft = new Hinata1155(owner, name, symbol);
+            Hinata1155 nft = new Hinata1155(owner, name, symbol, baseURI);
             return address(nft);
         }
     }

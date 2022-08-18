@@ -8,7 +8,6 @@ interface ICollectionHelper {
         address owner,
         string memory name,
         string memory symbol,
-        string memory uri,
         bool is721
     ) external returns (address);
 }

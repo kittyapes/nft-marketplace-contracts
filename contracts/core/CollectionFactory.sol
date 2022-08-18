@@ -68,16 +68,15 @@ contract CollectionFactory is ICollectionFactory, UUPSUpgradeable, OwnableUpgrad
         royaltyLimit = limit;
     }
 
-    function spawn(
+    function create(
         string memory name,
         string memory symbol,
-        string memory uri,
         address[] memory beneficiaries,
         uint256[] memory percentages,
         bool is721
     ) external returns (address) {
         Royalty[] memory royalties = _getRoyalties(beneficiaries, percentages);
-        address nft = ICollectionHelper(helper).deploy(msg.sender, name, symbol, uri, is721);
+        address nft = ICollectionHelper(helper).deploy(msg.sender, name, symbol, is721);
         _store(msg.sender, address(nft), royalties, is721);
         return address(nft);
     }

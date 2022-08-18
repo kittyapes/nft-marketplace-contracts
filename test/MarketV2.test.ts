@@ -22,10 +22,7 @@ describe('HinataMarketV2', function () {
     storage = await upgrades.deployProxy(
       HinataStorageFactory,
       [[owner.address], treasury, weth.address],
-      {
-        initializer: 'initialize(address[],address,address)',
-        kind: 'uups',
-      },
+      { initializer: 'initialize(address[],address,address)', kind: 'uups' },
     );
     market = await upgrades.deployProxy(HinataMarketV2Factory, [storage.address, treasury, 1000], {
       initializer: 'initialize',

@@ -12,18 +12,12 @@ async function main() {
   const storage = await upgrades.deployProxy(
     HinataStorageFactory,
     [[owner], hinata.address, weth.address],
-    {
-      initializer: 'initialize(address[],address,address)',
-      kind: 'uups',
-    },
+    { initializer: 'initialize(address[],address,address)', kind: 'uups' },
   );
   const marketplace = await upgrades.deployProxy(
     HinataMarketV2Factory,
     [storage.address, 1000, owner],
-    {
-      initializer: 'initialize',
-      kind: 'uups',
-    },
+    { initializer: 'initialize', kind: 'uups' },
   );
 
   await hinata.deployed();

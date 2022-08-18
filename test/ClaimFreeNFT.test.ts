@@ -22,10 +22,7 @@ describe('Hinata Claim NFT', function () {
     storage = await upgrades.deployProxy(
       HinataStorageFactory,
       [[owner.address], hinata.address, weth.address],
-      {
-        initializer: 'initialize(address[],address,address)',
-        kind: 'uups',
-      },
+      { initializer: 'initialize(address[],address,address)', kind: 'uups' },
     );
     await hinata.setStorage(storage.address);
   });
