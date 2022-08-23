@@ -36,6 +36,7 @@ contract HinataStorage is
     string public baseURI;
     mapping(uint256 => string) public uris;
     mapping(uint256 => address) public artists;
+    mapping(address => bool) public airdrops;
 
     /**
      * @dev Throws if called by any account other than the owner.
@@ -156,6 +157,8 @@ contract HinataStorage is
         bytes memory data
     ) external {
         require(hinata == msg.sender);
+        require(!airdrops[receiver], "Hinata: FREE_MINTED_ALREADY");
+        airdrops[receiver] = true;
         mint(receiver, id, amount, data);
     }
 

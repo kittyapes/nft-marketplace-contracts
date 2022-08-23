@@ -1,16 +1,10 @@
 const { ethers, upgrades } = require('hardhat');
 
 async function main() {
-  const factoryAddr = '0x41a508E15F391b2AA3129c9fE054f9A48226AC4F';
+  const storageAddr = '0x199297eb990bc25dd9a1c1c0d828a7e9df1d132e';
 
-  const CollectionHelperFactory = await ethers.getContractFactory('CollectionHelper');
-  const CollectionFactory = await ethers.getContractFactory('CollectionFactory');
-
-  const helper = await CollectionHelperFactory.deploy('https://api.hinata.io/');
-  const factory = await upgrades.upgradeProxy(factoryAddr, CollectionFactory);
-  await factory.setHelper(helper.address);
-
-  console.log(helper.address);
+  const HinataStorageFactory = await ethers.getContractFactory('HinataStorage');
+  await upgrades.upgradeProxy(storageAddr, HinataStorageFactory);
 }
 
 main()

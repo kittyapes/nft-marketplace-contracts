@@ -77,8 +77,8 @@ contract CollectionFactory is ICollectionFactory, UUPSUpgradeable, OwnableUpgrad
     ) external returns (address) {
         Royalty[] memory royalties = _getRoyalties(beneficiaries, percentages);
         address nft = ICollectionHelper(helper).deploy(msg.sender, name, symbol, is721);
-        _store(msg.sender, address(nft), royalties, is721);
-        return address(nft);
+        _store(msg.sender, nft, royalties, is721);
+        return nft;
     }
 
     function register(
