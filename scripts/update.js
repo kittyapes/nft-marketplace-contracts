@@ -1,10 +1,10 @@
 const { ethers, upgrades } = require('hardhat');
 
 async function main() {
-  const storageAddr = '0x199297eb990bc25dd9a1c1c0d828a7e9df1d132e';
+  const marketplaceAddr = '0x9A986d8B2cB50e827393Ec329cb0003535b5Ff75';
 
-  const HinataStorageFactory = await ethers.getContractFactory('HinataStorage');
-  await upgrades.upgradeProxy(storageAddr, HinataStorageFactory);
+  const HinataMarketplaceFactory = await ethers.getContractFactory('HinataMarketplace');
+  await upgrades.upgradeProxy(marketplaceAddr, HinataMarketplaceFactory);
 }
 
 main()

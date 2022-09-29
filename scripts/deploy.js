@@ -17,7 +17,7 @@ async function main() {
     [[owner], hinata.address, weth.address],
     { initializer: 'initialize', kind: 'uups' },
   );
-  const helper = await CollectionHelperFactory.deploy('');
+  const helper = await CollectionHelperFactory.deploy('https://api.hinata.io/');
   const factory = await upgrades.deployProxy(
     CollectionFactory,
     [helper.address, storage.address, 9850],

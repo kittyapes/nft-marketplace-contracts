@@ -277,6 +277,8 @@ contract HinataMarketplace is
             listing.tokenAmounts,
             false
         );
+
+        delete listings[listingId];
         emit ListingPurchased(listingId, listing.seller, msg.sender);
     }
 

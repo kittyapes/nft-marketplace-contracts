@@ -24,8 +24,8 @@ export default {
       accounts: [process.env.PRIVATE_KEY],
     },
     testnet: {
-      url: `https://rinkeby.infura.io/v3/${process.env.INFURA_KEY}`,
-      chainId: 4,
+      url: `https://goerli.infura.io/v3/${process.env.INFURA_KEY}`,
+      chainId: 5,
       accounts: [process.env.PRIVATE_KEY],
       gas: 2100000,
       gasPrice: 8000000000,

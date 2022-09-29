@@ -1,17 +1,17 @@
 const { ethers } = require('hardhat');
 
 async function main() {
-  const wethAddr = '0xf2155859d31c5ea79f45a55c6ad9a44e7f257700';
-  const hinataAddr = '0x04013fA3b72E82489d434FD64E3f4142647413cA';
-  const storageAddr = '0xbfF4E404ACacd49c55Cc9A04e871D8a738af7095';
-  const marketplaceAddr = '0xfE5c453A595Cec7D2B20Aa9b7D57B5A0AD09d61F';
-  const adminForStorage = '0x35CaaBA865BD019dc738eCB96Ec7D0a7Ab349015';
+  const wethAddr = '0x0c84c20673341B5bae28D80F54926269A64B47a5';
+  const hinataAddr = '0x15733Ab0E019B8Ff529EceB3FA2F33BcdCc4c3a7';
+  const storageAddr = '0x5c7db52089565A5c3F701135d9015Bc4Df339B1b';
+  const marketplaceAddr = '0x48441F157Eb382C8FEC1f9b40f34aa9a04209028';
+  const adminForStorage = '0x7FB10CF27B4A7613d1B6F168e3DCf9728a115EFb';
   const server = '0xe26C1b781dC472D5Ff17FA1A542eF609bd0F2b87';
   const artists = [
-    '0x35CaaBA865BD019dc738eCB96Ec7D0a7Ab349015',
+    '0x35CaaBA865BD019dc738eCB96Ec7D0a7Ab349015', // admin
     '0x40D6f8Ac990d98F9c812A3910e3255345fB32f8e', // jakub
     '0x5546Ea6D6C056e5D4267789532D4743cE4438e6B',
-    '0x7e163970F2A09d6092721D4d2C19E1Fe33177DDD',
+    '0x7e163970F2A09d6092721D4d2C19E1Fe33177DDD', // stefan
     '0x302a44F7d6E5Fa00590ca7A01E35b6674f2fa645',
     '0x4E0f1cC2e75166e17D3683287dD7a7Facd1312Bd', // ivan
     '0x5Fba4608a7E9310735d0bE5993fEA08fEaF9bD48', // stefan
@@ -56,22 +56,23 @@ async function main() {
   const HinataMarketplaceFactory = await ethers.getContractFactory('HinataMarketplace');
 
   const hinata = await HinataFactory.attach(hinataAddr);
-  await hinata.addVerifier(server);
+  await hinata.setStorage(storageAddr);
 
-  const weth = await MockERC20Factory.attach(wethAddr);
-  await weth.setBalance(mintTos[0], amount);
-  await weth.setBalance(mintTos[1], amount);
-  await weth.setBalance(mintTos[2], amount);
-  await weth.setBalance(mintTos[3], amount);
-  await weth.setBalance(mintTos[4], amount);
-  await weth.setBalance(mintTos[5], amount);
+  // const weth = await MockERC20Factory.attach(wethAddr);
+  // await weth.setBalance('0x7FB10CF27B4A7613d1B6F168e3DCf9728a115EFb', amount);
+  // await weth.setBalance(mintTos[0], amount);
+  // await weth.setBalance(mintTos[1], amount);
+  // await weth.setBalance(mintTos[2], amount);
+  // await weth.setBalance(mintTos[3], amount);
+  // await weth.setBalance(mintTos[4], amount);
+  // await weth.setBalance(mintTos[5], amount);
 
-  const storage = await HinataStorageFactory.attach(storageAddr);
-  await storage.grantRole(ADMIN_ROLE, adminForStorage);
-  await storage.addArtists(artists);
+  // const storage = await HinataStorageFactory.attach(storageAddr);
+  // await storage.grantRole(ADMIN_ROLE, '0xB712dECe0f1E0a1a561D74Ef90cF08a560CE3214');
+  // await storage.addArtists(['0xB712dECe0f1E0a1a561D74Ef90cF08a560CE3214']);
 
-  const marketplace = await HinataMarketplaceFactory.attach(marketplaceAddr);
-  await marketplace.setAcceptPayToken(wethAddr, true);
+  // const marketplace = await HinataMarketplaceFactory.attach(marketplaceAddr);
+  // await marketplace.setAcceptPayToken(wethAddr, true);
 }
 
 main()
