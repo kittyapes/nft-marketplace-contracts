@@ -164,6 +164,10 @@ contract CollectionFactory is ICollectionFactory, UUPSUpgradeable, OwnableUpgrad
         }
     }
 
+    function getType(address collection) external view returns (uint8) {
+        return ICollectionHelper(helper).getType(collection);
+    }
+
     function getCollection(address collection) external view override returns (Collection memory) {
         return collections[collectionIds[collection]];
     }

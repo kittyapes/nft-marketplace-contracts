@@ -19,12 +19,12 @@ export default {
       chainId: 89,
     },
     mainnet: {
-      url: `https://mainnet.infura.io/v3/${process.env.INFURA_KEY}`,
+      url: `https://eth-mainnet.alchemyapi.io/v2/${process.env.ALCHEMY_KEY}`,
       chainId: 1,
       accounts: [process.env.PRIVATE_KEY],
     },
     testnet: {
-      url: `https://goerli.infura.io/v3/${process.env.INFURA_KEY}`,
+      url: `https://eth-goerli.alchemyapi.io/v2/${process.env.ALCHEMY_KEY}`,
       chainId: 5,
       accounts: [process.env.PRIVATE_KEY],
       gas: 2100000,

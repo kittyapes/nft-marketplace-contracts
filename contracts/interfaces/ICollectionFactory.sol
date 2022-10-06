@@ -24,6 +24,8 @@ interface ICollectionFactory {
         bool is721
     );
 
+    function getType(address collection) external view returns (uint8);
+
     function getCollection(address collection) external view returns (Collection memory);
 
     function getCollectionRoyalties(address collection) external view returns (Royalty[] memory);

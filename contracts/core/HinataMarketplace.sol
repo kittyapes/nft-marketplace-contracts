@@ -13,6 +13,7 @@ import "@openzeppelin/contracts-upgradeable/token/ERC1155/IERC1155ReceiverUpgrad
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import "../interfaces/ICollectionFactory.sol";
+import "../interfaces/ICollectionHelper.sol";
 
 contract HinataMarketplace is
     Initializable,
@@ -381,7 +382,10 @@ contract HinataMarketplace is
 
         tokenAmounts = new uint256[](listing.collections.length);
         for (uint256 i; i < listing.tokenIds.length; i += 1) {
-            if (factory.getCollection(listing.collections[i]).is721) {
+            uint8 cType = ICollectionFactory(factory).getType(listing.collections[i]);
+            require(cType > 0, "HinataMarket: NOT_NFT_CONTRACT");
+
+            if (cType == 1) {
                 IERC721Upgradeable(listing.collections[i]).safeTransferFrom(
                     from,
                     to,
