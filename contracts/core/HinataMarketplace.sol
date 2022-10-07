@@ -195,10 +195,9 @@ contract HinataMarketplace is
     }
 
     function restartListing(uint256 listingId) external checkSeller(listingId, true) {
-        Listing storage listing = listings[listingId];
         require(!_isActiveListing(listingId), "HinataMarket: STILL_ACTIVE");
-        listing.startTime = uint64(block.timestamp);
-        emit ListingRestarted(listingId, listing.startTime);
+        listings[listingId].startTime = uint64(block.timestamp);
+        emit ListingRestarted(listingId, listings[listingId].startTime);
     }
 
     function updateListing(
@@ -232,8 +231,8 @@ contract HinataMarketplace is
     }
 
     function cancelListing(uint256 listingId) external checkSeller(listingId, true) nonReentrant {
-        Listing storage listing = listings[listingId];
-        Bidding storage bidding = biddings[listingId];
+        Listing memory listing = listings[listingId];
+        Bidding memory bidding = biddings[listingId];
         if (bidding.bidder != address(0)) {
             require(
                 listing.reservePrice > listing.price && bidding.bidAmount < listing.reservePrice,
@@ -254,7 +253,7 @@ contract HinataMarketplace is
         checkSeller(listingId, false)
         nonReentrant
     {
-        Listing storage listing = listings[listingId];
+        Listing memory listing = listings[listingId];
         if (
             listing.listingType == ListingType.TIERED_1_OF_N_AUCTION ||
             listing.listingType == ListingType.TIME_LIMITED_WINNER_TAKE_ALL_AUCTION
@@ -288,8 +287,8 @@ contract HinataMarketplace is
         checkSeller(listingId, false)
         nonReentrant
     {
-        Listing storage listing = listings[listingId];
-        Bidding storage bidding = biddings[listingId];
+        Listing memory listing = listings[listingId];
+        Bidding memory bidding = biddings[listingId];
         if (
             listing.listingType != ListingType.TIERED_1_OF_N_AUCTION &&
             listing.listingType != ListingType.TIME_LIMITED_WINNER_TAKE_ALL_AUCTION
@@ -297,24 +296,22 @@ contract HinataMarketplace is
             revert("HinataMarket: ONLY_FOR_AUCTION");
         }
         require(_isActiveListing(listingId), "HinataMarket: INACTIVE_LISTING");
-        require(bidAmount >= listing.price, "HinataMarket: TOO_LOW_BID");
+        require(
+            bidAmount >= listing.price && bidAmount > bidding.bidAmount,
+            "HinataMarket: TOO_LOW_BID"
+        );
+        require(bidding.bidder != msg.sender, "HinataMarket: ALREADY_HIGHEST_BIDDER");
 
-        if (bidding.bidder != address(0)) {
-            require(bidAmount > bidding.bidAmount, "HinataMarket: LOWER_THAN_HIGHEST");
-            if (bidding.bidder != msg.sender)
-                IERC20Upgradeable(listing.payToken).safeTransfer(bidding.bidder, bidding.bidAmount);
-        }
-        address oldBidder = bidding.bidder;
-        uint256 oldBidAmount = bidding.bidAmount;
+        if (bidding.bidder != address(0))
+            IERC20Upgradeable(listing.payToken).safeTransfer(bidding.bidder, bidding.bidAmount);
         biddings[listingId] = Bidding(msg.sender, bidAmount);
-        if (msg.sender == oldBidder) bidAmount -= oldBidAmount;
         IERC20Upgradeable(listing.payToken).safeTransferFrom(msg.sender, address(this), bidAmount);
         emit BidUpdated(listingId, msg.sender, bidAmount);
     }
 
     function completeAuction(uint256 listingId) external checkSeller(listingId, true) nonReentrant {
-        Listing storage listing = listings[listingId];
-        Bidding storage bidding = biddings[listingId];
+        Listing memory listing = listings[listingId];
+        Bidding memory bidding = biddings[listingId];
         if (
             listing.listingType != ListingType.TIERED_1_OF_N_AUCTION &&
             listing.listingType != ListingType.TIME_LIMITED_WINNER_TAKE_ALL_AUCTION
@@ -341,7 +338,7 @@ contract HinataMarketplace is
 
     /// @dev Returns true if the NFT is on listing.
     function _isActiveListing(uint256 listingId) internal view returns (bool) {
-        Listing storage listing = listings[listingId];
+        Listing memory listing = listings[listingId];
         return
             listing.startTime > 0 &&
             block.timestamp >= listing.startTime &&
@@ -373,7 +370,7 @@ contract HinataMarketplace is
         address from,
         address to
     ) internal returns (uint256[] memory tokenAmounts) {
-        Listing storage listing = listings[listingId];
+        Listing memory listing = listings[listingId];
         require(
             listing.collections.length == listing.tokenIds.length &&
                 listing.collections.length == listing.tokenAmounts.length,

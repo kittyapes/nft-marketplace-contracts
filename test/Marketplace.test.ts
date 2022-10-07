@@ -464,8 +464,8 @@ describe('Hinata Marketplace', function () {
 
       expect(await payToken.balanceOf(bob.address)).to.equal(0);
 
-      await expect(market.connect(bob).bid(1, price)).to.revertedWith(
-        'HinataMarket: LOWER_THAN_HIGHEST',
+      await expect(market.connect(bob).bid(1, price.add(1))).to.revertedWith(
+        'HinataMarket: ALREADY_HIGHEST_BIDDER',
       );
     });
   });
