@@ -217,8 +217,10 @@ contract HinataMarketplace is
             require(block.timestamp < newStartTime, "HinataMarket: NEW_TIME_PAST");
             listing.startTime = newStartTime;
         }
-
-        if (listing.duration != newDuration) listing.duration = newDuration;
+        if (listing.duration != newDuration) {
+            require(listing.duration < newDuration, "HinataMarket: CAN_ONLY_INCREASE");
+            listing.duration = newDuration;
+        }
         if (listing.quantity != newQuantity) {
             require(
                 _isValidatedListing(listing.tokenAmounts, newQuantity),
