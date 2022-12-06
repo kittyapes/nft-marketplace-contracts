@@ -12,7 +12,8 @@ interface IHinataStorage {
     function mintArtistNFT(
         uint256[] calldata tokenIds,
         uint256[] calldata amounts,
-        bytes memory data
+        bytes memory data,
+        string memory uri_
     ) external;
 
     function safeBatchTransferFrom(

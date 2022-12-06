@@ -27,8 +27,6 @@ export default {
       url: `https://eth-goerli.alchemyapi.io/v2/${process.env.ALCHEMY_KEY}`,
       chainId: 5,
       accounts: [process.env.PRIVATE_KEY],
-      gas: 2100000,
-      gasPrice: 8000000000,
     },
   },
   namedAccounts: {

@@ -96,6 +96,8 @@ contract HinataMarketplace is
     mapping(uint256 => Bidding) public biddings;
     mapping(uint256 => bool) public usedIDs;
 
+    uint256 public limitCount;
+
     modifier onlyAdmin() {
         require(hasRole(DEFAULT_ADMIN_ROLE, msg.sender), "Ownable: caller is not the owner");
         _;
@@ -162,6 +164,7 @@ contract HinataMarketplace is
         require(!usedIDs[listing.id], "HinataMarket: ALREADY_USED_ID");
         require(acceptPayTokens[listing.payToken], "HinataMarket: INVALID_PAY_TOKEN");
         require(listing.reservePrice >= listing.price, "HinataMarket: RESERVE_PRICE_LOW");
+        require(listing.collections.length <= limitCount, "HinataMarket: MORE_THAN_LIMIT");
         if (listing.listingType == ListingType.INVENTORIED_FIXED_PRICE) {
             require(
                 listing.quantity > 0 && _isValidatedListing(listing.tokenAmounts, listing.quantity),
@@ -336,6 +339,14 @@ contract HinataMarketplace is
         delete listings[listingId];
         delete biddings[listingId];
         emit ListingPurchased(listingId, msg.sender, bidding.bidder);
+    }
+
+    function getListingInfo(uint256 listingId) external view returns (Listing memory) {
+        return listings[listingId];
+    }
+
+    function setLimitCount(uint256 limitCount_) external onlyAdmin {
+        limitCount = limitCount_;
     }
 
     /// @dev Returns true if the NFT is on listing.

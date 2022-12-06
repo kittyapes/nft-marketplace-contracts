@@ -52,6 +52,7 @@ describe('Hinata Marketplace', function () {
       { initializer: 'initialize', kind: 'uups' },
     );
 
+    await market.setLimitCount(10);
     await market.setAcceptPayToken(payToken.address, true);
     await storage.addArtist(alice.address);
     await storage.connect(alice).mintBatchArtistNFT([1, 2], [10, 10], '0x');
@@ -146,6 +147,28 @@ describe('Hinata Marketplace', function () {
       await market.setAcceptPayToken(payToken.address, false);
       await expect(market.connect(alice).createListing(listing)).to.revertedWith(
         'HinataMarket: INVALID_PAY_TOKEN',
+      );
+    });
+
+    it('revert if count is over limit', async () => {
+      const listing = [
+        1,
+        constants.AddressZero,
+        payToken.address,
+        price,
+        price,
+        0,
+        0,
+        0,
+        ListingType.FIXED_PRICE,
+        [storage.address],
+        [1],
+        [10],
+      ];
+
+      await market.setLimitCount(0);
+      await expect(market.connect(alice).createListing(listing)).to.revertedWith(
+        'HinataMarket: MORE_THAN_LIMIT',
       );
     });
 

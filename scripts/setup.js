@@ -1,10 +1,11 @@
+const { utils } = require('ethers');
 const { ethers } = require('hardhat');
 
 async function main() {
-  const wethAddr = '0x0c84c20673341B5bae28D80F54926269A64B47a5';
-  const hinataAddr = '0x15733Ab0E019B8Ff529EceB3FA2F33BcdCc4c3a7';
-  const storageAddr = '0x5c7db52089565A5c3F701135d9015Bc4Df339B1b';
-  const marketplaceAddr = '0x48441F157Eb382C8FEC1f9b40f34aa9a04209028';
+  const wethAddr = '0xbA5029aAF14672ef662aD8eB38CDB4E4C16AdF6D';
+  const hinataAddr = '0xf41f5a3f6497687738F1cBd0B262f577da9384Bf';
+  const storageAddr = '0xE09dA477881DDC07D8DAD107dd71021EA43aCFf8';
+  const marketplaceAddr = '0x1fBf287d7026f5d43549424886B439Fc1d405c58';
   const adminForStorage = '0x7FB10CF27B4A7613d1B6F168e3DCf9728a115EFb';
   const server = '0xe26C1b781dC472D5Ff17FA1A542eF609bd0F2b87';
   const artists = [
@@ -40,6 +41,7 @@ async function main() {
     '0xf09000ABe7ceBA60947768793038d05b9678DDC8',
   ];
   const ADMIN_ROLE = '0x0000000000000000000000000000000000000000000000000000000000000000';
+  const MINTER_ROLE = '0x9f2df0fed2c77648de5860a4cc508cd0818c85b8b8a1ab4ceeef8d981c8956a6';
   const mintTos = [
     '0x302a44F7d6E5Fa00590ca7A01E35b6674f2fa645', // petar
     '0x5546Ea6D6C056e5D4267789532D4743cE4438e6B', // pavel
@@ -48,18 +50,25 @@ async function main() {
     '0x1a63D0736b4205fBe4E635D0d43657b43f30AB09', // jakub
     '0x35CaaBA865BD019dc738eCB96Ec7D0a7Ab349015', // anhnt
   ];
-  const amount = '10000000000000000000000';
+  const sharedAccount = '0xB712dECe0f1E0a1a561D74Ef90cF08a560CE3214';
+  const amount = '100000000000000000000000';
 
   const HinataFactory = await ethers.getContractFactory('Hinata');
   const MockERC20Factory = await ethers.getContractFactory('MockERC20');
   const HinataStorageFactory = await ethers.getContractFactory('HinataStorage');
   const HinataMarketplaceFactory = await ethers.getContractFactory('HinataMarketplace');
 
-  const hinata = await HinataFactory.attach(hinataAddr);
-  await hinata.setStorage(storageAddr);
+  const params = {
+    nonce: 176,
+    gasPrice: '60000000000',
+    gasLimit: 60000,
+  };
+
+  // const hinata = await HinataFactory.attach(hinataAddr);
+  // await hinata.setStorage(storageAddr);
 
   // const weth = await MockERC20Factory.attach(wethAddr);
-  // await weth.setBalance('0x7FB10CF27B4A7613d1B6F168e3DCf9728a115EFb', amount);
+  // await weth.setBalance(sharedAccount, amount);
   // await weth.setBalance(mintTos[0], amount);
   // await weth.setBalance(mintTos[1], amount);
   // await weth.setBalance(mintTos[2], amount);
@@ -68,11 +77,10 @@ async function main() {
   // await weth.setBalance(mintTos[5], amount);
 
   // const storage = await HinataStorageFactory.attach(storageAddr);
-  // await storage.grantRole(ADMIN_ROLE, '0xB712dECe0f1E0a1a561D74Ef90cF08a560CE3214');
-  // await storage.addArtists(['0xB712dECe0f1E0a1a561D74Ef90cF08a560CE3214']);
+  // await hinata.addVerifier('0x555f663c62f973c7ab4d146d861d87f7d931bd29');
 
-  // const marketplace = await HinataMarketplaceFactory.attach(marketplaceAddr);
-  // await marketplace.setAcceptPayToken(wethAddr, true);
+  const marketplace = await HinataMarketplaceFactory.attach(marketplaceAddr);
+  await marketplace.setAcceptPayToken(wethAddr, true, params);
 }
 
 main()

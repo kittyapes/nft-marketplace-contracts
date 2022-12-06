@@ -112,9 +112,11 @@ contract HinataStorage is
         address to,
         uint256 id,
         uint256 amount,
-        bytes memory data
+        bytes memory data,
+        string memory uri_
     ) public {
         require(hasRole(MINTER_ROLE, msg.sender), "Hinata: NO_MINTER_ROLE");
+        uris[id] = uri_;
         _mint(to, id, amount, data);
     }
 
@@ -131,11 +133,12 @@ contract HinataStorage is
     function mintArtistNFT(
         uint256 id,
         uint256 amount,
-        bytes memory data
+        bytes memory data,
+        string memory uri_
     ) external onlyArtist {
         if (artists[id] == address(0)) artists[id] = msg.sender;
         require(artists[id] == msg.sender, "Hinata: NOT_OWNER");
-        mint(msg.sender, id, amount, data);
+        mint(msg.sender, id, amount, data, uri_);
     }
 
     function mintBatchArtistNFT(
@@ -159,7 +162,7 @@ contract HinataStorage is
         require(hinata == msg.sender);
         require(!airdrops[receiver], "Hinata: FREE_MINTED_ALREADY");
         airdrops[receiver] = true;
-        mint(receiver, id, amount, data);
+        mint(receiver, id, amount, data, uris[id]);
     }
 
     function setBaseURI(string memory baseURI_) external onlyAdmin {
