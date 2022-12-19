@@ -116,7 +116,7 @@ contract HinataStorage is
         string memory uri_
     ) public {
         require(hasRole(MINTER_ROLE, msg.sender), "Hinata: NO_MINTER_ROLE");
-        baseURI = uri_;
+        uris[id] = uri_;
         _mint(to, id, amount, data);
     }
 
