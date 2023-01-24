@@ -36,6 +36,7 @@ contract HinataMarketV2 is
     mapping(address => bool) public acceptPayTokens;
     mapping(address => mapping(uint256 => bool)) public usedNonces;
     mapping(address => mapping(uint256 => bool)) public usedNoncesForBid;
+    mapping(bytes => bool) public invalidSignatures;
 
     event ListingPurchased(Listing listing, address buyer);
 
@@ -125,6 +126,7 @@ contract HinataMarketV2 is
         uint256 nonce,
         bytes memory signature
     ) external nonReentrant {
+        require(!invalidSignatures[signature], "MarketV2: INVALID_SIGNATURE");
         require(msg.sender != listing.seller, "MarketV2: IS_SELLER");
         require(!usedNonces[listing.seller][nonce], "MarketV2: USED_SIGNATURE");
         require(acceptPayTokens[listing.payToken], "MarketV2: NOT_WHITELISTED_TOKEN");
@@ -193,6 +195,8 @@ contract HinataMarketV2 is
         bytes memory signature,
         bytes memory signatureForBid
     ) external nonReentrant {
+        require(!invalidSignatures[signature], "MarketV2: INVALID_SIGNATURE");
+        require(!invalidSignatures[signatureForBid], "MarketV2: INVALID_SIGNATURE");
         require(listing.seller == msg.sender, "MarketV2: IS_NOT_SELLER");
         require(!usedNonces[msg.sender][nonce], "MarketV2: USED_SIGNATURE");
         require(!usedNoncesForBid[bidding.bidder][nonceForBid], "MarketV2: USED_SIGNATURE_FOR_BID");
@@ -254,6 +258,10 @@ contract HinataMarketV2 is
         );
 
         emit ListingPurchased(listing, bidding.bidder);
+    }
+
+    function cancelSignature(bytes memory signature) external {
+        invalidSignatures[signature] = true;
     }
 
     function _isValidatedListing(uint256[] memory tokenAmounts, uint64 quantity)
