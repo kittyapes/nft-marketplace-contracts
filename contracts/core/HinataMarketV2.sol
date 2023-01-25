@@ -56,6 +56,7 @@ contract HinataMarketV2 is
         uint128 reservePrice;
         uint64 startTime;
         uint64 duration;
+        uint64 expireTime;
         uint64 quantity;
         ListingType listingType;
         address[] collections;
@@ -126,6 +127,7 @@ contract HinataMarketV2 is
         uint256 nonce,
         bytes memory signature
     ) external nonReentrant {
+        require(listing.expireTime > block.timestamp, "MarketV2: ALREADY_EXPIRED");
         require(!invalidSignatures[signature], "MarketV2: INVALID_SIGNATURE");
         require(msg.sender != listing.seller, "MarketV2: IS_SELLER");
         require(!usedNonces[listing.seller][nonce], "MarketV2: USED_SIGNATURE");
@@ -160,6 +162,7 @@ contract HinataMarketV2 is
                 listing.reservePrice,
                 listing.startTime,
                 listing.duration,
+                listing.expireTime,
                 listing.quantity,
                 listing.listingType,
                 listing.collections,
@@ -195,6 +198,7 @@ contract HinataMarketV2 is
         bytes memory signature,
         bytes memory signatureForBid
     ) external nonReentrant {
+        require(listing.expireTime > block.timestamp, "MarketV2: ALREADY_EXPIRED");
         require(!invalidSignatures[signature], "MarketV2: INVALID_SIGNATURE");
         require(!invalidSignatures[signatureForBid], "MarketV2: INVALID_SIGNATURE");
         require(listing.seller == msg.sender, "MarketV2: IS_NOT_SELLER");
@@ -226,6 +230,7 @@ contract HinataMarketV2 is
                 listing.reservePrice,
                 listing.startTime,
                 listing.duration,
+                listing.expireTime,
                 listing.quantity,
                 listing.listingType,
                 listing.collections,

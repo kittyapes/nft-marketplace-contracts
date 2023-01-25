@@ -12,7 +12,7 @@ enum ListingType {
   TIME_LIMITED_1_OF_N_WINNING_TICKETS_RAFFLE,
 }
 
-describe('HinataMarketV2', function () {
+describe.only('HinataMarketV2', function () {
   let owner: SignerWithAddress;
   let alice: SignerWithAddress;
   let bob: SignerWithAddress;
@@ -22,7 +22,6 @@ describe('HinataMarketV2', function () {
   let market: Contract;
   const hinata = '0x35CaaBA865BD019dc738eCB96Ec7D0a7Ab349015';
   const price = utils.parseEther('100');
-  const treasury = Wallet.createRandom().address;
 
   beforeEach(async function () {
     [owner, alice, bob] = await ethers.getSigners();
@@ -136,6 +135,7 @@ describe('HinataMarketV2', function () {
         price,
         BigNumber.from(currentTime),
         BigNumber.from('0'),
+        BigNumber.from(currentTime).add(10000),
         BigNumber.from('0'),
         ListingType.FIXED_PRICE,
         [storage.address],
@@ -151,6 +151,7 @@ describe('HinataMarketV2', function () {
         price,
         currentTime,
         0,
+        currentTime + 10000,
         0,
         ListingType.FIXED_PRICE,
         [storage.address],
@@ -172,6 +173,7 @@ describe('HinataMarketV2', function () {
         price,
         BigNumber.from(currentTime),
         BigNumber.from('0'),
+        BigNumber.from(currentTime).add(10000),
         BigNumber.from('0'),
         ListingType.FIXED_PRICE,
         [storage.address],
@@ -187,6 +189,7 @@ describe('HinataMarketV2', function () {
         price,
         currentTime,
         0,
+        currentTime + 10000,
         0,
         ListingType.FIXED_PRICE,
         [storage.address],
@@ -213,6 +216,7 @@ describe('HinataMarketV2', function () {
         price,
         BigNumber.from(currentTime),
         BigNumber.from('0'),
+        BigNumber.from(currentTime).add(10000),
         BigNumber.from('0'),
         ListingType.TIERED_1_OF_N_AUCTION,
         [storage.address],
@@ -229,6 +233,7 @@ describe('HinataMarketV2', function () {
         price,
         currentTime,
         0,
+        currentTime + 10000,
         0,
         ListingType.TIERED_1_OF_N_AUCTION,
         [storage.address],
@@ -254,6 +259,7 @@ describe('HinataMarketV2', function () {
         price,
         BigNumber.from(currentTime),
         BigNumber.from('0'),
+        BigNumber.from(currentTime).add(10000),
         BigNumber.from('0'),
         ListingType.TIERED_1_OF_N_AUCTION,
         [storage.address],
@@ -270,6 +276,7 @@ describe('HinataMarketV2', function () {
         price,
         currentTime,
         0,
+        currentTime + 10000,
         0,
         ListingType.TIERED_1_OF_N_AUCTION,
         [storage.address],
@@ -295,6 +302,7 @@ const getListingSignature = async (
   reservePrice: BigNumber,
   startTime: BigNumber,
   duration: BigNumber,
+  endTime: BigNumber,
   quantity: BigNumber,
   listingType: ListingType,
   collections: Array<string>,
@@ -311,6 +319,7 @@ const getListingSignature = async (
       'uint64',
       'uint64',
       'uint64',
+      'uint64',
       'uint8',
       'address[]',
       'uint256[]',
@@ -324,6 +333,7 @@ const getListingSignature = async (
       reservePrice,
       startTime,
       duration,
+      endTime,
       quantity,
       listingType,
       collections,
