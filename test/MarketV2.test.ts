@@ -3,68 +3,97 @@ import { ethers, upgrades } from 'hardhat';
 import { Contract, BigNumber, Wallet, constants, utils } from 'ethers';
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
 
-describe('HinataMarketV2', function () {
+enum ListingType {
+  FIXED_PRICE,
+  INVENTORIED_FIXED_PRICE,
+  TIME_LIMITED_WINNER_TAKE_ALL_AUCTION,
+  TIERED_1_OF_N_AUCTION,
+  TIME_LIMITED_PRICE_PER_TICKET_RAFFLE,
+  TIME_LIMITED_1_OF_N_WINNING_TICKETS_RAFFLE,
+}
+
+describe.only('HinataMarketV2', function () {
   let owner: SignerWithAddress;
   let alice: SignerWithAddress;
   let bob: SignerWithAddress;
+  let payToken: Contract;
   let storage: Contract;
+  let factory: Contract;
   let market: Contract;
-  let token: Contract;
-  const treasury = Wallet.createRandom().address;
+  const hinata = '0x35CaaBA865BD019dc738eCB96Ec7D0a7Ab349015';
+  const price = utils.parseEther('100');
 
   beforeEach(async function () {
     [owner, alice, bob] = await ethers.getSigners();
     const MockERC20Factory = await ethers.getContractFactory('MockERC20');
     const HinataStorageFactory = await ethers.getContractFactory('HinataStorage');
+    const CollectionHelperFactory = await ethers.getContractFactory('CollectionHelper');
+    const CollectionFactory = await ethers.getContractFactory('CollectionFactory');
     const HinataMarketV2Factory = await ethers.getContractFactory('HinataMarketV2');
 
     const weth = await MockERC20Factory.deploy('Mock WETH', 'WETH', 0);
+    payToken = await MockERC20Factory.deploy('MockToken', 'MCK', 0);
     storage = await upgrades.deployProxy(
       HinataStorageFactory,
-      [[owner.address], treasury, weth.address],
+      [[owner.address], hinata, weth.address],
       { initializer: 'initialize(address[],address,address)', kind: 'uups' },
     );
-    market = await upgrades.deployProxy(HinataMarketV2Factory, [storage.address, treasury, 1000], {
-      initializer: 'initialize',
-      kind: 'uups',
-    });
-    token = await MockERC20Factory.deploy('MockToken', 'MCK', 0);
-    await market.setAcceptPayToken(token.address, true);
+    const helper = await CollectionHelperFactory.deploy('');
+    factory = await upgrades.deployProxy(
+      CollectionFactory,
+      [helper.address, storage.address, 9850],
+      { initializer: 'initialize', kind: 'uups' },
+    );
+    market = await upgrades.deployProxy(
+      HinataMarketV2Factory,
+      [[owner.address], factory.address, owner.address, 1000],
+      { initializer: 'initialize', kind: 'uups' },
+    );
+
+    await market.setLimitCount(10);
+    await market.setAcceptPayToken(payToken.address, true);
+    await storage.addArtist(alice.address);
+    await storage.connect(alice).mintBatchArtistNFT([1, 2], [10, 10], '0x');
+    await storage.connect(alice).setApprovalForAll(market.address, true);
+
+    await payToken.setBalance(bob.address, price);
+    await payToken.connect(bob).approve(market.address, price);
   });
 
   describe('#initialize', () => {
-    it('revert if storage is 0x0', async () => {
+    it('revert if factory is 0x0', async () => {
       const HinataMarketV2Factory = await ethers.getContractFactory('HinataMarketV2');
       await expect(
-        upgrades.deployProxy(HinataMarketV2Factory, [constants.AddressZero, treasury, 1000], {
-          initializer: 'initialize',
-          kind: 'uups',
-        }),
-      ).to.revertedWith('MarketV2: INVALID_HINATA_STORAGE');
+        upgrades.deployProxy(
+          HinataMarketV2Factory,
+          [[owner.address], constants.AddressZero, owner.address, 1000],
+          { initializer: 'initialize', kind: 'uups' },
+        ),
+      ).to.revertedWith('MarketV2: INVALID_FACTORY');
     });
 
     it('revert if fee is over max', async () => {
       const HinataMarketV2Factory = await ethers.getContractFactory('HinataMarketV2');
       await expect(
-        upgrades.deployProxy(HinataMarketV2Factory, [storage.address, treasury, 10001], {
-          initializer: 'initialize',
-          kind: 'uups',
-        }),
+        upgrades.deployProxy(
+          HinataMarketV2Factory,
+          [[owner.address], factory.address, owner.address, 10001],
+          { initializer: 'initialize', kind: 'uups' },
+        ),
       ).to.revertedWith('MarketV2: INVALID_FEE');
     });
 
     it('check initial values', async () => {
-      expect(await market.hinataStorage()).to.equal(storage.address);
-      expect(await market.treasury()).to.equal(treasury);
+      expect(await market.factory()).to.equal(factory.address);
       expect(await market.marketFee()).to.equal(1000);
     });
   });
 
   describe('#setAcceptPayToken', () => {
     it('revert if msg.sender is not owner', async () => {
-      await expect(market.connect(alice).setAcceptPayToken(token.address, false)).to.revertedWith(
-        'Ownable: caller is not the owner',
-      );
+      await expect(
+        market.connect(alice).setAcceptPayToken(payToken.address, false),
+      ).to.revertedWith('Ownable: caller is not the owner');
     });
 
     it('revert if pay token is 0x0', async () => {
@@ -74,29 +103,14 @@ describe('HinataMarketV2', function () {
     });
 
     it('should accept new pay token', async () => {
-      await market.setAcceptPayToken(token.address, false);
-      expect(await market.acceptPayTokens(token.address)).to.equal(false);
-    });
-  });
-
-  describe('#setTreasury', () => {
-    const newFeeTo = Wallet.createRandom().address;
-
-    it('revert if msg.sender is not owner', async () => {
-      await expect(market.connect(alice).setTreasury(newFeeTo)).to.revertedWith(
-        'Ownable: caller is not the owner',
-      );
-    });
-
-    it('should set market treasury', async () => {
-      await market.setTreasury(newFeeTo);
-      expect(await market.treasury()).to.equal(newFeeTo);
+      await market.setAcceptPayToken(payToken.address, false);
+      expect(await market.acceptPayTokens(payToken.address)).to.equal(false);
     });
   });
 
   describe('#setMarketFee', () => {
     it('revert if msg.sender is not owner', async () => {
-      await expect(market.connect(alice).setMarketFee(1000)).to.revertedWith(
+      await expect(market.connect(alice).setMarketFee(10)).to.revertedWith(
         'Ownable: caller is not the owner',
       );
     });
@@ -105,77 +119,240 @@ describe('HinataMarketV2', function () {
       await expect(market.setMarketFee(10001)).to.revertedWith('MarketV2: INVALID_FEE');
     });
 
-    it('should set market fee', async () => {
-      await market.setMarketFee(2000);
-      expect(await market.marketFee()).to.equal(2000);
+    it('should set new fee', async () => {
+      await market.setMarketFee(100);
+      expect(await market.marketFee()).to.equal(100);
     });
   });
 
-  describe('#sell', () => {
-    beforeEach(async () => {
-      await storage.addArtist(alice.address);
-      await storage.connect(alice).mintBatchArtistNFT([1, 2], [10, 10], '0x');
-      await storage.connect(alice).setApprovalForAll(market.address, true);
-
-      await token.setBalance(bob.address, utils.parseEther('1000'));
-      await token.connect(bob).approve(market.address, utils.parseEther('1000'));
-    });
-
+  describe('#purchaseListing', () => {
     it('revert if invalid signature', async () => {
-      const signature = await getSignature(
-        market,
+      const currentTime = Math.floor(Date.now() / 1000);
+      const signature = await getListingSignature(
         alice,
-        bob,
-        token,
-        utils.parseEther('10'),
-        [BigNumber.from('1'), BigNumber.from('2')],
-        [BigNumber.from('10'), BigNumber.from('10')],
+        payToken,
+        price,
+        price,
+        BigNumber.from(currentTime),
+        BigNumber.from('0'),
+        BigNumber.from(currentTime).add(10000),
+        BigNumber.from('0'),
+        ListingType.FIXED_PRICE,
+        [storage.address],
+        [BigNumber.from('1')],
+        [BigNumber.from('10')],
+        BigNumber.from('0'),
       );
 
-      await expect(
-        market
-          .connect(alice)
-          .sell(alice.address, [1, 2], [10, 10], token.address, utils.parseEther('10'), signature),
-      ).to.revertedWith('MarketV2: INVALID_SIGNATURE');
+      const listing = [
+        alice.address,
+        payToken.address,
+        price,
+        price,
+        currentTime,
+        0,
+        currentTime + 10000,
+        0,
+        ListingType.FIXED_PRICE,
+        [storage.address],
+        [1],
+        [10],
+      ];
+
+      await expect(market.connect(bob).purchaseListing(listing, 1, signature)).to.revertedWith(
+        'MarketV2: INVALID_SIGNATURE',
+      );
     });
 
-    it('should sell & revert used signature', async () => {
-      const signature = await getSignature(
-        market,
+    it('should purchase listing', async () => {
+      const currentTime = Math.floor(Date.now() / 1000);
+      const signature = await getListingSignature(
         alice,
-        bob,
-        token,
-        utils.parseEther('10'),
-        [BigNumber.from('1'), BigNumber.from('2')],
-        [BigNumber.from('5'), BigNumber.from('5')],
+        payToken,
+        price,
+        price,
+        BigNumber.from(currentTime),
+        BigNumber.from('0'),
+        BigNumber.from(currentTime).add(10000),
+        BigNumber.from('0'),
+        ListingType.FIXED_PRICE,
+        [storage.address],
+        [BigNumber.from('1')],
+        [BigNumber.from('10')],
+        BigNumber.from('0'),
       );
-      await market
-        .connect(alice)
-        .sell(bob.address, [1, 2], [5, 5], token.address, utils.parseEther('10'), signature);
-      expect(await storage.balanceOf(bob.address, 1)).to.equal(5);
-      expect(await storage.balanceOf(bob.address, 2)).to.equal(5);
+
+      const listing = [
+        alice.address,
+        payToken.address,
+        price,
+        price,
+        currentTime,
+        0,
+        currentTime + 10000,
+        0,
+        ListingType.FIXED_PRICE,
+        [storage.address],
+        [1],
+        [10],
+      ];
+
+      await market.connect(bob).purchaseListing(listing, 0, signature);
+      expect(await storage.balanceOf(bob.address, 1)).to.equal(10);
+      const feePercentage = await market.marketFee();
+      const fee = price.mul(feePercentage).div(10000);
+      expect(await payToken.balanceOf(alice.address)).to.equal(price.sub(fee));
+      expect(await payToken.balanceOf(owner.address)).to.equal(fee);
+    });
+  });
+
+  describe('#completeAuction', () => {
+    it('revert if invalid signature', async () => {
+      const currentTime = Math.floor(Date.now() / 1000);
+      const signature = await getListingSignature(
+        alice,
+        payToken,
+        price,
+        price,
+        BigNumber.from(currentTime),
+        BigNumber.from('0'),
+        BigNumber.from(currentTime).add(10000),
+        BigNumber.from('0'),
+        ListingType.TIERED_1_OF_N_AUCTION,
+        [storage.address],
+        [BigNumber.from('1')],
+        [BigNumber.from('10')],
+        BigNumber.from('0'),
+      );
+      const bidSignature = await getBidSignature(bob, price, BigNumber.from('0'));
+
+      const listing = [
+        alice.address,
+        payToken.address,
+        price,
+        price,
+        currentTime,
+        0,
+        currentTime + 10000,
+        0,
+        ListingType.TIERED_1_OF_N_AUCTION,
+        [storage.address],
+        [1],
+        [10],
+      ];
+      const bidding = [bob.address, price];
 
       await expect(
-        market
-          .connect(alice)
-          .sell(bob.address, [1, 2], [5, 5], token.address, utils.parseEther('10'), signature),
-      ).to.revertedWith('MarketV2: USED_SIGNATURE');
+        market.connect(alice).completeAuction(listing, bidding, 1, 0, signature, bidSignature),
+      ).to.revertedWith('MarketV2: INVALID_SIGNATURE');
+      await expect(
+        market.connect(alice).completeAuction(listing, bidding, 0, 1, signature, bidSignature),
+      ).to.revertedWith('MarketV2: INVALID_SIGNATURE_FOR_BID');
+    });
+
+    it('should complete auction', async () => {
+      const currentTime = Math.floor(Date.now() / 1000);
+      const signature = await getListingSignature(
+        alice,
+        payToken,
+        price,
+        price,
+        BigNumber.from(currentTime),
+        BigNumber.from('0'),
+        BigNumber.from(currentTime).add(10000),
+        BigNumber.from('0'),
+        ListingType.TIERED_1_OF_N_AUCTION,
+        [storage.address],
+        [BigNumber.from('1')],
+        [BigNumber.from('10')],
+        BigNumber.from('0'),
+      );
+      const bidSignature = await getBidSignature(bob, price, BigNumber.from('0'));
+
+      const listing = [
+        alice.address,
+        payToken.address,
+        price,
+        price,
+        currentTime,
+        0,
+        currentTime + 10000,
+        0,
+        ListingType.TIERED_1_OF_N_AUCTION,
+        [storage.address],
+        [1],
+        [10],
+      ];
+      const bidding = [bob.address, price];
+
+      await market.connect(alice).completeAuction(listing, bidding, 0, 0, signature, bidSignature);
+      expect(await storage.balanceOf(bob.address, 1)).to.equal(10);
+      const feePercentage = await market.marketFee();
+      const fee = price.mul(feePercentage).div(10000);
+      expect(await payToken.balanceOf(alice.address)).to.equal(price.sub(fee));
+      expect(await payToken.balanceOf(owner.address)).to.equal(fee);
     });
   });
 });
 
-const getSignature = async (
-  market: Contract,
+const getListingSignature = async (
   seller: SignerWithAddress,
-  buyer: SignerWithAddress,
   payToken: Contract,
   price: BigNumber,
+  reservePrice: BigNumber,
+  startTime: BigNumber,
+  duration: BigNumber,
+  endTime: BigNumber,
+  quantity: BigNumber,
+  listingType: ListingType,
+  collections: Array<string>,
   tokenIds: Array<BigNumber>,
-  amounts: Array<BigNumber>,
+  tokenAmounts: Array<BigNumber>,
+  nonce: BigNumber,
 ) => {
   let message = ethers.utils.solidityKeccak256(
-    ['address', 'address', 'address', 'uint256', 'uint256[]', 'uint256[]'],
-    [seller.address, buyer.address, payToken.address, price, tokenIds, amounts],
+    [
+      'address',
+      'address',
+      'uint128',
+      'uint128',
+      'uint64',
+      'uint64',
+      'uint64',
+      'uint64',
+      'uint8',
+      'address[]',
+      'uint256[]',
+      'uint256[]',
+      'uint256',
+    ],
+    [
+      seller.address,
+      payToken.address,
+      price,
+      reservePrice,
+      startTime,
+      duration,
+      endTime,
+      quantity,
+      listingType,
+      collections,
+      tokenIds,
+      tokenAmounts,
+      nonce,
+    ],
   );
-  return await buyer.signMessage(ethers.utils.arrayify(message));
+  return await seller.signMessage(ethers.utils.arrayify(message));
+};
+
+const getBidSignature = async (
+  bidder: SignerWithAddress,
+  bidAmount: BigNumber,
+  nonce: BigNumber,
+) => {
+  let message = ethers.utils.solidityKeccak256(
+    ['address', 'uint256', 'uint256'],
+    [bidder.address, bidAmount, nonce],
+  );
+  return await bidder.signMessage(ethers.utils.arrayify(message));
 };

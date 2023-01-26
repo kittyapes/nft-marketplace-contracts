@@ -2,32 +2,22 @@ const { ethers, upgrades } = require('hardhat');
 
 async function main() {
   const owner = '0xD7D4587b5524b32e24F1eE7581D543C775df27B5';
-  const MockERC20Factory = await ethers.getContractFactory('MockERC20');
-  const HinataFactory = await ethers.getContractFactory('Hinata');
-  const HinataStorageFactory = await ethers.getContractFactory('HinataStorage');
+  const beneficiary = '0xD7D4587b5524b32e24F1eE7581D543C775df27B5';
+  const wethAddr = '0xbA5029aAF14672ef662aD8eB38CDB4E4C16AdF6D';
+  const factoryAddr = '0x7E6b4e3daE0C60Fa3FD9bfa8dB2215b8B237b4FC';
   const HinataMarketV2Factory = await ethers.getContractFactory('HinataMarketV2');
 
-  const weth = await MockERC20Factory.deploy('Mock WETH', 'WETH', '1000000000000000000000000');
-  const hinata = await HinataFactory.deploy(owner);
-  const storage = await upgrades.deployProxy(
-    HinataStorageFactory,
-    [[owner], hinata.address, weth.address],
-    { initializer: 'initialize(address[],address,address)', kind: 'uups' },
-  );
-  const marketplace = await upgrades.deployProxy(
+  const marketV2 = await upgrades.deployProxy(
     HinataMarketV2Factory,
-    [storage.address, 1000, owner],
+    [[owner], factoryAddr, beneficiary, 0],
     { initializer: 'initialize', kind: 'uups' },
   );
 
-  await hinata.deployed();
-  await hinata.setStorage(storage.address);
-  await storage.deployed();
-  await marketplace.deployed();
+  await marketV2.deployed();
+  await marketV2.setAcceptPayToken(wethAddr, true);
+  await marketV2.setLimitCount(10);
 
-  console.log('Hinata at:', hinata.address);
-  console.log('Storage at:', storage.address);
-  console.log('Marketplace at:', marketplace.address);
+  console.log('MarketV2 at:', marketV2.address);
 }
 
 main()
