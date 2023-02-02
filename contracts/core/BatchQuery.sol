@@ -34,7 +34,7 @@ contract BatchQuery {
             HinataMarketplace.Listing memory listing = hinataMarketplace.getListingInfo(
                 listingIds[i]
             );
-            if (res[i].seller != address(0)) {
+            if (listing.seller != address(0)) {
                 res[i].id = listing.id;
                 res[i].seller = listing.seller;
                 res[i].payToken = listing.payToken;
