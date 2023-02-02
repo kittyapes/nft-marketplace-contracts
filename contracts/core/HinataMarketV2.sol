@@ -266,6 +266,7 @@ contract HinataMarketV2 is
     }
 
     function cancelSignature(bytes memory signature) external {
+        require(!invalidSignatures[signature], "MarketV2: ALREADY_CANCELLED");
         invalidSignatures[signature] = true;
     }
 

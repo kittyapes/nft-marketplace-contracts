@@ -1,10 +1,10 @@
 const { ethers, upgrades } = require('hardhat');
 
 async function main() {
-  const owner = '0xD7D4587b5524b32e24F1eE7581D543C775df27B5';
-  const beneficiary = '0xD7D4587b5524b32e24F1eE7581D543C775df27B5';
-  const wethAddr = '0xbA5029aAF14672ef662aD8eB38CDB4E4C16AdF6D';
-  const factoryAddr = '0x7E6b4e3daE0C60Fa3FD9bfa8dB2215b8B237b4FC';
+  const owner = '0xd30b2014d01345eabf7545ab83bd5a4f6a5127ca';
+  const beneficiary = '0x2004C4E60B314604c5786dCa88e8D9B89cF3660a';
+  const wethAddr = '0xB4FBF271143F4FBf7B91A5ded31805e42b2208d6';
+  const factoryAddr = '0x41a508E15F391b2AA3129c9fE054f9A48226AC4F';
   const HinataMarketV2Factory = await ethers.getContractFactory('HinataMarketV2');
 
   const marketV2 = await upgrades.deployProxy(
