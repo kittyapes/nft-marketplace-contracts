@@ -98,30 +98,6 @@ contract HinataMarketV2 is
 
     function _authorizeUpgrade(address) internal override onlyAdmin {}
 
-    function setAcceptPayToken(address _payToken, bool _accept) external onlyAdmin {
-        require(_payToken != address(0), "MarketV2: INVALID_PAY_TOKEN");
-        acceptPayTokens[_payToken] = _accept;
-    }
-
-    function setMarketFee(uint256 marketFee_) external onlyAdmin {
-        require(marketFee_ <= 10000, "MarketV2: INVALID_FEE");
-        marketFee = marketFee_;
-    }
-
-    function setBeneficiary(address beneficiary_) external onlyAdmin {
-        require(beneficiary_ != address(0), "MarketV2: INVALID_BENEFICIARY");
-        beneficiary = beneficiary_;
-    }
-
-    function setLimitCount(uint256 limitCount_) external onlyAdmin {
-        limitCount = limitCount_;
-    }
-
-    function withdrawFunds(address token, address to) external onlyAdmin {
-        IERC20Upgradeable erc20Token = IERC20Upgradeable(token);
-        erc20Token.safeTransfer(to, erc20Token.balanceOf(address(this)));
-    }
-
     function purchaseListing(
         Listing memory listing,
         uint256 nonce,
@@ -268,6 +244,55 @@ contract HinataMarketV2 is
     function cancelSignature(bytes memory signature) external {
         require(!invalidSignatures[signature], "MarketV2: ALREADY_CANCELLED");
         invalidSignatures[signature] = true;
+    }
+
+    function setAcceptPayToken(address _payToken, bool _accept) external onlyAdmin {
+        require(_payToken != address(0), "MarketV2: INVALID_PAY_TOKEN");
+        acceptPayTokens[_payToken] = _accept;
+    }
+
+    function setMarketFee(uint256 marketFee_) external onlyAdmin {
+        require(marketFee_ <= 10000, "MarketV2: INVALID_FEE");
+        marketFee = marketFee_;
+    }
+
+    function setBeneficiary(address beneficiary_) external onlyAdmin {
+        require(beneficiary_ != address(0), "MarketV2: INVALID_BENEFICIARY");
+        beneficiary = beneficiary_;
+    }
+
+    function setLimitCount(uint256 limitCount_) external onlyAdmin {
+        limitCount = limitCount_;
+    }
+
+    function withdrawFunds(address token, address to) external onlyAdmin {
+        IERC20Upgradeable erc20Token = IERC20Upgradeable(token);
+        erc20Token.safeTransfer(to, erc20Token.balanceOf(address(this)));
+    }
+
+    function queryNonces(address[] calldata accounts, uint256[] calldata nonces)
+        external
+        view
+        returns (bool[] memory res, bool[] memory resForBid)
+    {
+        uint256 len = accounts.length;
+        res = new bool[](len);
+        for (uint256 i; i < len; ++i) {
+            res[i] = usedNonces[accounts[i]][nonces[i]];
+            resForBid[i] = usedNoncesForBid[accounts[i]][nonces[i]];
+        }
+    }
+
+    function querySignatureStatus(bytes[] calldata signatures)
+        external
+        view
+        returns (bool[] memory res)
+    {
+        uint256 len = signatures.length;
+        res = new bool[](len);
+        for (uint256 i; i < len; ++i) {
+            res[i] = !invalidSignatures[signatures[i]];
+        }
     }
 
     function _isValidatedListing(uint256[] memory tokenAmounts, uint64 quantity)
