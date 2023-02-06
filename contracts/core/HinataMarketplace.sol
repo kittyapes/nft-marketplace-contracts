@@ -79,6 +79,18 @@ contract HinataMarketplace is
         uint256[] tokenAmounts;
     }
 
+    struct ListingRes {
+        uint256 id;
+        address seller;
+        address payToken;
+        uint128 price;
+        uint128 reservePrice;
+        uint64 startTime;
+        uint64 duration;
+        uint64 quantity;
+        bool active;
+    }
+
     struct Bidding {
         address bidder;
         uint256 bidAmount;
@@ -134,30 +146,6 @@ contract HinataMarketplace is
     }
 
     function _authorizeUpgrade(address) internal override onlyAdmin {}
-
-    function setAcceptPayToken(address payToken, bool accept) external onlyAdmin {
-        require(payToken != address(0), "HinataMarket: INVALID_PAY_TOKEN");
-        acceptPayTokens[payToken] = accept;
-    }
-
-    function setBeneficiary(address beneficiary_) external onlyAdmin {
-        require(beneficiary_ != address(0), "HinataMarket: INVALID_BENEFICIARY");
-        beneficiary = beneficiary_;
-    }
-
-    function setMarketFee(uint256 marketFee_) external onlyAdmin {
-        require(marketFee_ <= 10000, "HinataMarket: INVALID_FEE");
-        marketFee = marketFee_;
-    }
-
-    function setFactory(address factory_) external onlyAdmin {
-        factory = ICollectionFactory(factory_);
-    }
-
-    function withdrawFunds(address token, address to) external onlyAdmin {
-        IERC20Upgradeable erc20Token = IERC20Upgradeable(token);
-        erc20Token.safeTransfer(to, erc20Token.balanceOf(address(this)));
-    }
 
     function createListing(Listing memory listing) external nonReentrant {
         require(!usedIDs[listing.id], "HinataMarket: ALREADY_USED_ID");
@@ -340,12 +328,94 @@ contract HinataMarketplace is
         emit ListingPurchased(listingId, msg.sender, bidding.bidder);
     }
 
-    function getListingInfo(uint256 listingId) external view returns (Listing memory) {
-        return listings[listingId];
+    function setAcceptPayToken(address payToken, bool accept) external onlyAdmin {
+        require(payToken != address(0), "HinataMarket: INVALID_PAY_TOKEN");
+        acceptPayTokens[payToken] = accept;
+    }
+
+    function setBeneficiary(address beneficiary_) external onlyAdmin {
+        require(beneficiary_ != address(0), "HinataMarket: INVALID_BENEFICIARY");
+        beneficiary = beneficiary_;
+    }
+
+    function setMarketFee(uint256 marketFee_) external onlyAdmin {
+        require(marketFee_ <= 10000, "HinataMarket: INVALID_FEE");
+        marketFee = marketFee_;
     }
 
     function setLimitCount(uint256 limitCount_) external onlyAdmin {
         limitCount = limitCount_;
+    }
+
+    function setFactory(address factory_) external onlyAdmin {
+        factory = ICollectionFactory(factory_);
+    }
+
+    function withdrawFunds(address token, address to) external onlyAdmin {
+        IERC20Upgradeable erc20Token = IERC20Upgradeable(token);
+        erc20Token.safeTransfer(to, erc20Token.balanceOf(address(this)));
+    }
+
+    function getListingInfo(uint256 listingId) public view returns (Listing memory) {
+        return listings[listingId];
+    }
+
+    function queryListings(uint256[] calldata listingIds)
+        external
+        view
+        returns (ListingRes[] memory res)
+    {
+        uint256 len = listingIds.length;
+        res = new ListingRes[](len);
+        for (uint256 i; i < len; ++i) {
+            HinataMarketplace.Listing memory listing = getListingInfo(listingIds[i]);
+            if (listing.seller != address(0)) {
+                res[i].id = listing.id;
+                res[i].seller = listing.seller;
+                res[i].payToken = listing.payToken;
+                res[i].price = listing.price;
+                res[i].reservePrice = listing.reservePrice;
+                res[i].startTime = listing.startTime;
+                res[i].duration = listing.duration;
+                res[i].active = true;
+            }
+        }
+    }
+
+    // Query invalid listings due to NFT ownership
+    function queryNFTStatus(uint256[] calldata listingIds)
+        external
+        view
+        returns (bool[] memory res)
+    {
+        uint256 len = listingIds.length;
+        res = new bool[](len);
+        for (uint256 i; i < len; ++i) {
+            HinataMarketplace.Listing memory listing = getListingInfo(listingIds[i]);
+            uint256 collectionLen = listing.collections.length;
+            for (uint256 j; j < collectionLen; ++j) {
+                address collection = listing.collections[j];
+                uint8 cType = factory.getType(collection);
+                if (cType == 1) {
+                    if (
+                        IERC721Upgradeable(collection).ownerOf(listing.tokenIds[j]) != address(this)
+                    ) {
+                        res[i] = true;
+                        break;
+                    }
+                } else {
+                    if (
+                        IERC1155Upgradeable(collection).balanceOf(
+                            address(this),
+                            listing.tokenIds[j]
+                        ) < listing.tokenAmounts[j]
+                    ) {
+                        res[i] = true;
+                        break;
+                    }
+                }
+            }
+        }
     }
 
     /// @dev Returns true if the NFT is on listing.

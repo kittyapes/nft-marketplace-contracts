@@ -12,7 +12,7 @@ enum ListingType {
   TIME_LIMITED_1_OF_N_WINNING_TICKETS_RAFFLE,
 }
 
-describe.only('HinataMarketV2', function () {
+describe('HinataMarketV2', function () {
   let owner: SignerWithAddress;
   let alice: SignerWithAddress;
   let bob: SignerWithAddress;
