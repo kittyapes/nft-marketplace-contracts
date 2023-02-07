@@ -277,6 +277,7 @@ contract HinataMarketV2 is
     {
         uint256 len = accounts.length;
         res = new bool[](len);
+        resForBid = new bool[](len);
         for (uint256 i; i < len; ++i) {
             res[i] = usedNonces[accounts[i]][nonces[i]];
             resForBid[i] = usedNoncesForBid[accounts[i]][nonces[i]];

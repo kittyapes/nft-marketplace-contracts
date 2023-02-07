@@ -3,7 +3,7 @@ const { ethers, upgrades } = require('hardhat');
 async function main() {
   const owner = '0xd30b2014d01345eabf7545ab83bd5a4f6a5127ca';
   const beneficiary = '0x2004C4E60B314604c5786dCa88e8D9B89cF3660a';
-  const wethAddr = '0xB4FBF271143F4FBf7B91A5ded31805e42b2208d6';
+  const wethAddr = '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2';
   const factoryAddr = '0x41a508E15F391b2AA3129c9fE054f9A48226AC4F';
   const HinataMarketV2Factory = await ethers.getContractFactory('HinataMarketV2');
 
