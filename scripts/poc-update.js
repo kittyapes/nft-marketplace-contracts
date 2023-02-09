@@ -1,7 +1,7 @@
 const { ethers, upgrades } = require('hardhat');
 
 async function main() {
-  const marketV2Addr = '0x7419a5dfd3F40aaAd7cF791BC5994E7DaA5c0532';
+  const marketV2Addr = '0x464CF8880524f70b8f956f5042A7F712d759c516';
   const HinataMarketV2Factory = await ethers.getContractFactory('HinataMarketV2');
   await upgrades.upgradeProxy(marketV2Addr, HinataMarketV2Factory);
 }
