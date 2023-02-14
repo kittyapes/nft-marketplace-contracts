@@ -145,6 +145,7 @@ describe('HinataMarketV2', function () {
       );
 
       const listing = [
+        1,
         alice.address,
         payToken.address,
         price,
@@ -183,6 +184,7 @@ describe('HinataMarketV2', function () {
       );
 
       const listing = [
+        1,
         alice.address,
         payToken.address,
         price,
@@ -224,9 +226,15 @@ describe('HinataMarketV2', function () {
         [BigNumber.from('10')],
         BigNumber.from('0'),
       );
-      const bidSignature = await getBidSignature(bob, price, BigNumber.from('0'));
+      const bidSignature = await getBidSignature(
+        BigNumber.from('1'),
+        bob,
+        price,
+        BigNumber.from('0'),
+      );
 
       const listing = [
+        1,
         alice.address,
         payToken.address,
         price,
@@ -267,9 +275,15 @@ describe('HinataMarketV2', function () {
         [BigNumber.from('10')],
         BigNumber.from('0'),
       );
-      const bidSignature = await getBidSignature(bob, price, BigNumber.from('0'));
+      const bidSignature = await getBidSignature(
+        BigNumber.from('1'),
+        bob,
+        price,
+        BigNumber.from('0'),
+      );
 
       const listing = [
+        1,
         alice.address,
         payToken.address,
         price,
@@ -346,13 +360,14 @@ const getListingSignature = async (
 };
 
 const getBidSignature = async (
+  id: BigNumber,
   bidder: SignerWithAddress,
   bidAmount: BigNumber,
   nonce: BigNumber,
 ) => {
   let message = ethers.utils.solidityKeccak256(
-    ['address', 'uint256', 'uint256'],
-    [bidder.address, bidAmount, nonce],
+    ['uint256', 'address', 'uint256', 'uint256'],
+    [id, bidder.address, bidAmount, nonce],
   );
   return await bidder.signMessage(ethers.utils.arrayify(message));
 };

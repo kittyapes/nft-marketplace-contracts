@@ -35,8 +35,6 @@ contract HinataMarketV2 is
     uint256 public limitCount;
     mapping(address => bool) public acceptPayTokens;
     mapping(address => mapping(uint256 => bool)) public usedNonces;
-    mapping(address => mapping(uint256 => bool)) public usedNoncesForBid;
-    mapping(bytes => bool) public invalidSignatures;
 
     event ListingPurchased(Listing listing, address buyer);
 
@@ -50,6 +48,7 @@ contract HinataMarketV2 is
     }
 
     struct Listing {
+        uint256 id;
         address seller;
         address payToken;
         uint128 price;
@@ -71,6 +70,21 @@ contract HinataMarketV2 is
 
     modifier onlyAdmin() {
         require(hasRole(DEFAULT_ADMIN_ROLE, msg.sender), "Ownable: caller is not the owner");
+        _;
+    }
+
+    modifier onlyValidListing(Listing memory listing, uint256 nonce) {
+        require(listing.expireTime > block.timestamp, "MarketV2: ALREADY_EXPIRED");
+        require(!usedNonces[listing.seller][nonce], "MarketV2: USED_SIGNATURE");
+        require(acceptPayTokens[listing.payToken], "MarketV2: NOT_WHITELISTED_TOKEN");
+        require(listing.reservePrice >= listing.price, "MarketV2: RESERVE_PRICE_LOW");
+        require(listing.collections.length <= limitCount, "MarketV2: MORE_THAN_LIMIT");
+        if (listing.listingType == ListingType.INVENTORIED_FIXED_PRICE) {
+            require(
+                listing.quantity > 0 && _isValidatedListing(listing.tokenAmounts, listing.quantity),
+                "MarketV2: INVALID_LISTING"
+            );
+        }
         _;
     }
 
@@ -102,20 +116,8 @@ contract HinataMarketV2 is
         Listing memory listing,
         uint256 nonce,
         bytes memory signature
-    ) external nonReentrant {
-        require(listing.expireTime > block.timestamp, "MarketV2: ALREADY_EXPIRED");
-        require(!invalidSignatures[signature], "MarketV2: INVALID_SIGNATURE");
-        require(msg.sender != listing.seller, "MarketV2: IS_SELLER");
-        require(!usedNonces[listing.seller][nonce], "MarketV2: USED_SIGNATURE");
-        require(acceptPayTokens[listing.payToken], "MarketV2: NOT_WHITELISTED_TOKEN");
-        require(listing.reservePrice >= listing.price, "MarketV2: RESERVE_PRICE_LOW");
-        require(listing.collections.length <= limitCount, "MarketV2: MORE_THAN_LIMIT");
-        if (listing.listingType == ListingType.INVENTORIED_FIXED_PRICE) {
-            require(
-                listing.quantity > 0 && _isValidatedListing(listing.tokenAmounts, listing.quantity),
-                "MarketV2: INVALID_LISTING"
-            );
-        }
+    ) external onlyValidListing(listing, nonce) nonReentrant {
+        require(listing.seller != msg.sender, "MarketV2: IS_SELLER");
 
         if (
             listing.listingType == ListingType.TIERED_1_OF_N_AUCTION ||
@@ -130,28 +132,7 @@ contract HinataMarketV2 is
             );
         }
 
-        bytes32 data = keccak256(
-            abi.encodePacked(
-                listing.seller,
-                listing.payToken,
-                listing.price,
-                listing.reservePrice,
-                listing.startTime,
-                listing.duration,
-                listing.expireTime,
-                listing.quantity,
-                listing.listingType,
-                listing.collections,
-                listing.tokenIds,
-                listing.tokenAmounts,
-                nonce
-            )
-        );
-        require(
-            data.toEthSignedMessageHash().recover(signature) == listing.seller,
-            "MarketV2: INVALID_SIGNATURE"
-        );
-        usedNonces[listing.seller][nonce] = true;
+        _checkListingSignature(listing, nonce, signature);
 
         _transferNFTs(listing, listing.seller, msg.sender);
         _proceedRoyalty(
@@ -173,22 +154,10 @@ contract HinataMarketV2 is
         uint256 nonceForBid,
         bytes memory signature,
         bytes memory signatureForBid
-    ) external nonReentrant {
-        require(listing.expireTime > block.timestamp, "MarketV2: ALREADY_EXPIRED");
-        require(!invalidSignatures[signature], "MarketV2: INVALID_SIGNATURE");
-        require(!invalidSignatures[signatureForBid], "MarketV2: INVALID_SIGNATURE");
+    ) external onlyValidListing(listing, nonce) nonReentrant {
         require(listing.seller == msg.sender, "MarketV2: IS_NOT_SELLER");
-        require(!usedNonces[msg.sender][nonce], "MarketV2: USED_SIGNATURE");
-        require(!usedNoncesForBid[bidding.bidder][nonceForBid], "MarketV2: USED_SIGNATURE_FOR_BID");
-        require(acceptPayTokens[listing.payToken], "MarketV2: NOT_WHITELISTED_TOKEN");
-        require(listing.reservePrice >= listing.price, "MarketV2: RESERVE_PRICE_LOW");
-        require(listing.collections.length <= limitCount, "MarketV2: MORE_THAN_LIMIT");
-        if (listing.listingType == ListingType.INVENTORIED_FIXED_PRICE) {
-            require(
-                listing.quantity > 0 && _isValidatedListing(listing.tokenAmounts, listing.quantity),
-                "MarketV2: INVALID_LISTING"
-            );
-        }
+        require(!usedNonces[bidding.bidder][nonceForBid], "MarketV2: USED_NONCE_FOR_BID");
+        require(bidding.bidder != address(0), "MarketV2: NO_ACTIVE_BID");
 
         if (
             listing.listingType != ListingType.TIERED_1_OF_N_AUCTION &&
@@ -196,37 +165,17 @@ contract HinataMarketV2 is
         ) {
             revert("MarketV2: ONLY_FOR_AUCTION");
         }
-        require(bidding.bidder != address(0), "MarketV2: NO_ACTIVE_BID");
+
+        _checkListingSignature(listing, nonce, signature);
 
         bytes32 data = keccak256(
-            abi.encodePacked(
-                listing.seller,
-                listing.payToken,
-                listing.price,
-                listing.reservePrice,
-                listing.startTime,
-                listing.duration,
-                listing.expireTime,
-                listing.quantity,
-                listing.listingType,
-                listing.collections,
-                listing.tokenIds,
-                listing.tokenAmounts,
-                nonce
-            )
+            abi.encodePacked(listing.id, bidding.bidder, bidding.bidAmount, nonceForBid)
         );
-        require(
-            data.toEthSignedMessageHash().recover(signature) == msg.sender,
-            "MarketV2: INVALID_SIGNATURE"
-        );
-
-        data = keccak256(abi.encodePacked(bidding.bidder, bidding.bidAmount, nonceForBid));
         require(
             data.toEthSignedMessageHash().recover(signatureForBid) == bidding.bidder,
             "MarketV2: INVALID_SIGNATURE_FOR_BID"
         );
-        usedNonces[msg.sender][nonce] = true;
-        usedNoncesForBid[bidding.bidder][nonceForBid] = true;
+        usedNonces[bidding.bidder][nonceForBid] = true;
 
         _transferNFTs(listing, listing.seller, bidding.bidder);
         _proceedRoyalty(
@@ -241,9 +190,9 @@ contract HinataMarketV2 is
         emit ListingPurchased(listing, bidding.bidder);
     }
 
-    function cancelSignature(bytes memory signature) external {
-        require(!invalidSignatures[signature], "MarketV2: ALREADY_CANCELLED");
-        invalidSignatures[signature] = true;
+    function useNonce(uint256 nonce) external {
+        require(!usedNonces[msg.sender][nonce], "MarketV2: ALREADY_USED");
+        usedNonces[msg.sender][nonce] = true;
     }
 
     function setAcceptPayToken(address _payToken, bool _accept) external onlyAdmin {
@@ -273,26 +222,12 @@ contract HinataMarketV2 is
     function queryNonces(address[] calldata accounts, uint256[] calldata nonces)
         external
         view
-        returns (bool[] memory res, bool[] memory resForBid)
+        returns (bool[] memory res)
     {
         uint256 len = accounts.length;
         res = new bool[](len);
-        resForBid = new bool[](len);
         for (uint256 i; i < len; ++i) {
             res[i] = usedNonces[accounts[i]][nonces[i]];
-            resForBid[i] = usedNoncesForBid[accounts[i]][nonces[i]];
-        }
-    }
-
-    function querySignatureStatus(bytes[] calldata signatures)
-        external
-        view
-        returns (bool[] memory res)
-    {
-        uint256 len = signatures.length;
-        res = new bool[](len);
-        for (uint256 i; i < len; ++i) {
-            res[i] = !invalidSignatures[signatures[i]];
         }
     }
 
@@ -308,6 +243,35 @@ contract HinataMarketV2 is
             }
         }
         return true;
+    }
+
+    function _checkListingSignature(
+        Listing memory listing,
+        uint256 nonce,
+        bytes memory signature
+    ) private {
+        bytes32 data = keccak256(
+            abi.encodePacked(
+                listing.seller,
+                listing.payToken,
+                listing.price,
+                listing.reservePrice,
+                listing.startTime,
+                listing.duration,
+                listing.expireTime,
+                listing.quantity,
+                listing.listingType,
+                listing.collections,
+                listing.tokenIds,
+                listing.tokenAmounts,
+                nonce
+            )
+        );
+        require(
+            data.toEthSignedMessageHash().recover(signature) == listing.seller,
+            "MarketV2: INVALID_SIGNATURE"
+        );
+        usedNonces[listing.seller][nonce] = true;
     }
 
     function _transferNFTs(
