@@ -10,6 +10,7 @@ import "@openzeppelin/contracts-upgradeable/token/ERC721/IERC721ReceiverUpgradea
 import "@openzeppelin/contracts-upgradeable/token/ERC1155/IERC1155Upgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC1155/IERC1155ReceiverUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/utils/cryptography/draft-EIP712Upgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/utils/cryptography/ECDSAUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
@@ -20,11 +21,20 @@ contract HinataMarketV2 is
     IERC721ReceiverUpgradeable,
     IERC1155ReceiverUpgradeable,
     UUPSUpgradeable,
+    EIP712Upgradeable,
     AccessControl,
     ReentrancyGuardUpgradeable
 {
     using ECDSAUpgradeable for bytes32;
     using SafeERC20Upgradeable for IERC20Upgradeable;
+
+    bytes32 private constant LISTING_MESSAGE =
+        keccak256(
+            "ListingMessage(address seller,address payToken,uint128 price,uint128 reservePrice,uint64 startTime,uint64 duration,uint64 expireTime,uint64 quantity,uint8 listingType,address[] collections,uint256[] tokenIds,uint256[] tokenAmounts,uint256 nonce)"
+        );
+
+    bytes32 private constant BID_MESSAGE =
+        keccak256("BidMessage(uint256 id,address bidder,uint256 amount,uint256 nonce)");
 
     //Values 0-10,000 map to 0%-100%
     uint256 private constant MAX_DURATION = 120 * 86400;
@@ -99,6 +109,7 @@ contract HinataMarketV2 is
 
         __ReentrancyGuard_init();
         __UUPSUpgradeable_init();
+        __EIP712_init("HinataMarketV2", "1.0");
 
         factory = ICollectionFactory(factory_);
         beneficiary = beneficiary_;
@@ -168,11 +179,11 @@ contract HinataMarketV2 is
 
         _checkListingSignature(listing, nonce, signature);
 
-        bytes32 data = keccak256(
-            abi.encodePacked(listing.id, bidding.bidder, bidding.bidAmount, nonceForBid)
+        bytes32 structHash = keccak256(
+            abi.encode(BID_MESSAGE, listing.id, bidding.bidder, bidding.bidAmount, nonceForBid)
         );
         require(
-            data.toEthSignedMessageHash().recover(signatureForBid) == bidding.bidder,
+            _hashTypedDataV4(structHash).recover(signatureForBid) == bidding.bidder,
             "MarketV2: INVALID_SIGNATURE_FOR_BID"
         );
         usedNonces[bidding.bidder][nonceForBid] = true;
@@ -250,8 +261,9 @@ contract HinataMarketV2 is
         uint256 nonce,
         bytes memory signature
     ) private {
-        bytes32 data = keccak256(
-            abi.encodePacked(
+        bytes32 structHash = keccak256(
+            abi.encode(
+                LISTING_MESSAGE,
                 listing.seller,
                 listing.payToken,
                 listing.price,
@@ -268,7 +280,7 @@ contract HinataMarketV2 is
             )
         );
         require(
-            data.toEthSignedMessageHash().recover(signature) == listing.seller,
+            _hashTypedDataV4(structHash).recover(signature) == listing.seller,
             "MarketV2: INVALID_SIGNATURE"
         );
         usedNonces[listing.seller][nonce] = true;

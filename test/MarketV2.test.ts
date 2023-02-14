@@ -1,7 +1,9 @@
 import { expect } from 'chai';
 import { ethers, upgrades } from 'hardhat';
-import { Contract, BigNumber, Wallet, constants, utils } from 'ethers';
+import { ecsign } from 'ethereumjs-util';
+import { Contract, BigNumber, constants, utils, Wallet } from 'ethers';
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
+const { keccak256, defaultAbiCoder, toUtf8Bytes, solidityPack } = utils;
 
 enum ListingType {
   FIXED_PRICE,
@@ -14,8 +16,8 @@ enum ListingType {
 
 describe('HinataMarketV2', function () {
   let owner: SignerWithAddress;
-  let alice: SignerWithAddress;
-  let bob: SignerWithAddress;
+  let alice: Wallet;
+  let bob: Wallet;
   let payToken: Contract;
   let storage: Contract;
   let factory: Contract;
@@ -24,7 +26,15 @@ describe('HinataMarketV2', function () {
   const price = utils.parseEther('100');
 
   beforeEach(async function () {
-    [owner, alice, bob] = await ethers.getSigners();
+    [owner] = await ethers.getSigners();
+    alice = Wallet.fromMnemonic(
+      'test test test test test test test test test test test junk',
+      "m/44'/60'/0'/0",
+    ).connect(owner.provider);
+    bob = Wallet.fromMnemonic(
+      'test test test test test test test test test test test junk',
+      "m/44'/60'/0",
+    ).connect(owner.provider);
     const MockERC20Factory = await ethers.getContractFactory('MockERC20');
     const HinataStorageFactory = await ethers.getContractFactory('HinataStorage');
     const CollectionHelperFactory = await ethers.getContractFactory('CollectionHelper');
@@ -50,6 +60,8 @@ describe('HinataMarketV2', function () {
       { initializer: 'initialize', kind: 'uups' },
     );
 
+    await owner.sendTransaction({ to: alice.address, value: utils.parseEther('5') });
+    await owner.sendTransaction({ to: bob.address, value: utils.parseEther('5') });
     await market.setLimitCount(10);
     await market.setAcceptPayToken(payToken.address, true);
     await storage.addArtist(alice.address);
@@ -129,6 +141,7 @@ describe('HinataMarketV2', function () {
     it('revert if invalid signature', async () => {
       const currentTime = Math.floor(Date.now() / 1000);
       const signature = await getListingSignature(
+        market,
         alice,
         payToken,
         price,
@@ -168,6 +181,7 @@ describe('HinataMarketV2', function () {
     it('should purchase listing', async () => {
       const currentTime = Math.floor(Date.now() / 1000);
       const signature = await getListingSignature(
+        market,
         alice,
         payToken,
         price,
@@ -212,6 +226,7 @@ describe('HinataMarketV2', function () {
     it('revert if invalid signature', async () => {
       const currentTime = Math.floor(Date.now() / 1000);
       const signature = await getListingSignature(
+        market,
         alice,
         payToken,
         price,
@@ -227,6 +242,7 @@ describe('HinataMarketV2', function () {
         BigNumber.from('0'),
       );
       const bidSignature = await getBidSignature(
+        market,
         BigNumber.from('1'),
         bob,
         price,
@@ -261,6 +277,7 @@ describe('HinataMarketV2', function () {
     it('should complete auction', async () => {
       const currentTime = Math.floor(Date.now() / 1000);
       const signature = await getListingSignature(
+        market,
         alice,
         payToken,
         price,
@@ -276,6 +293,7 @@ describe('HinataMarketV2', function () {
         BigNumber.from('0'),
       );
       const bidSignature = await getBidSignature(
+        market,
         BigNumber.from('1'),
         bob,
         price,
@@ -310,7 +328,8 @@ describe('HinataMarketV2', function () {
 });
 
 const getListingSignature = async (
-  seller: SignerWithAddress,
+  market: Contract,
+  seller: Wallet,
   payToken: Contract,
   price: BigNumber,
   reservePrice: BigNumber,
@@ -324,50 +343,126 @@ const getListingSignature = async (
   tokenAmounts: Array<BigNumber>,
   nonce: BigNumber,
 ) => {
-  let message = ethers.utils.solidityKeccak256(
-    [
-      'address',
-      'address',
-      'uint128',
-      'uint128',
-      'uint64',
-      'uint64',
-      'uint64',
-      'uint64',
-      'uint8',
-      'address[]',
-      'uint256[]',
-      'uint256[]',
-      'uint256',
-    ],
-    [
-      seller.address,
-      payToken.address,
-      price,
-      reservePrice,
-      startTime,
-      duration,
-      endTime,
-      quantity,
-      listingType,
-      collections,
-      tokenIds,
-      tokenAmounts,
-      nonce,
-    ],
+  const separator = keccak256(
+    defaultAbiCoder.encode(
+      ['bytes32', 'bytes32', 'bytes32', 'uint256', 'address'],
+      [
+        keccak256(
+          toUtf8Bytes(
+            'EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)',
+          ),
+        ),
+        keccak256(toUtf8Bytes('HinataMarketV2')),
+        keccak256(toUtf8Bytes('1.0')),
+        (await ethers.provider.getNetwork()).chainId,
+        market.address,
+      ],
+    ),
   );
-  return await seller.signMessage(ethers.utils.arrayify(message));
+  const message = keccak256(
+    toUtf8Bytes(
+      'ListingMessage(address seller,address payToken,uint128 price,uint128 reservePrice,uint64 startTime,uint64 duration,uint64 expireTime,uint64 quantity,uint8 listingType,address[] collections,uint256[] tokenIds,uint256[] tokenAmounts,uint256 nonce)',
+    ),
+  );
+
+  const data = keccak256(
+    solidityPack(
+      ['bytes1', 'bytes1', 'bytes32', 'bytes32'],
+      [
+        '0x19',
+        '0x01',
+        separator,
+        keccak256(
+          defaultAbiCoder.encode(
+            [
+              'bytes32',
+              'address',
+              'address',
+              'uint128',
+              'uint128',
+              'uint64',
+              'uint64',
+              'uint64',
+              'uint64',
+              'uint8',
+              'address[]',
+              'uint256[]',
+              'uint256[]',
+              'uint256',
+            ],
+            [
+              message,
+              seller.address,
+              payToken.address,
+              price,
+              reservePrice,
+              startTime,
+              duration,
+              endTime,
+              quantity,
+              listingType,
+              collections,
+              tokenIds,
+              tokenAmounts,
+              nonce,
+            ],
+          ),
+        ),
+      ],
+    ),
+  );
+  const { v, r, s } = ecsign(
+    Buffer.from(data.slice(2), 'hex'),
+    Buffer.from(seller.privateKey.slice(2), 'hex'),
+  );
+  return utils.joinSignature({ v, r: '0x' + r.toString('hex'), s: '0x' + s.toString('hex') });
 };
 
 const getBidSignature = async (
+  market: Contract,
   id: BigNumber,
-  bidder: SignerWithAddress,
+  bidder: Wallet,
   bidAmount: BigNumber,
   nonce: BigNumber,
 ) => {
-  let message = ethers.utils.solidityKeccak256(
-    ['uint256', 'address', 'uint256', 'uint256'],
-    [id, bidder.address, bidAmount, nonce],
+  const separator = keccak256(
+    defaultAbiCoder.encode(
+      ['bytes32', 'bytes32', 'bytes32', 'uint256', 'address'],
+      [
+        keccak256(
+          toUtf8Bytes(
+            'EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)',
+          ),
+        ),
+        keccak256(toUtf8Bytes('HinataMarketV2')),
+        keccak256(toUtf8Bytes('1.0')),
+        (await ethers.provider.getNetwork()).chainId,
+        market.address,
+      ],
+    ),
   );
-  return await bidder.signMessage(ethers.utils.arrayify(message));
+  const message = keccak256(
+    toUtf8Bytes('BidMessage(uint256 id,address bidder,uint256 amount,uint256 nonce)'),
+  );
+  const data = keccak256(
+    solidityPack(
+      ['bytes1', 'bytes1', 'bytes32', 'bytes32'],
+      [
+        '0x19',
+        '0x01',
+        separator,
+        keccak256(
+          defaultAbiCoder.encode(
+            ['bytes32', 'uint256', 'address', 'uint256', 'uint256'],
+            [message, id, bidder.address, bidAmount, nonce],
+          ),
+        ),
+      ],
+    ),
+  );
+  const { v, r, s } = ecsign(
+    Buffer.from(data.slice(2), 'hex'),
+    Buffer.from(bidder.privateKey.slice(2), 'hex'),
+  );
+  return utils.joinSignature({ v, r: '0x' + r.toString('hex'), s: '0x' + s.toString('hex') });
 };

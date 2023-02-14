@@ -26,6 +26,7 @@
     "chai": "^4.3.6",
     "dotenv": "^10.0.0",
     "ethereum-waffle": "^3.4.0",
+    "ethereumjs-util": "^7.1.5",
     "ethers": "^5.4.1",
     "hardhat": "^2.9.3",
     "hardhat-gas-reporter": "^1.0.8",
