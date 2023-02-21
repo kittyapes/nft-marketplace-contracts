@@ -34,7 +34,9 @@ contract HinataMarketV2 is
         );
 
     bytes32 private constant BID_MESSAGE =
-        keccak256("BidMessage(uint256 id,address bidder,uint256 amount,uint256 nonce)");
+        keccak256(
+            "BidMessage(address seller,uint256 listingNonce,address bidder,uint256 amount,uint256 nonce)"
+        );
 
     //Values 0-10,000 map to 0%-100%
     uint256 private constant MAX_DURATION = 120 * 86400;
@@ -180,7 +182,14 @@ contract HinataMarketV2 is
         _checkListingSignature(listing, nonce, signature);
 
         bytes32 structHash = keccak256(
-            abi.encode(BID_MESSAGE, listing.id, bidding.bidder, bidding.bidAmount, nonceForBid)
+            abi.encode(
+                BID_MESSAGE,
+                listing.seller,
+                nonce,
+                bidding.bidder,
+                bidding.bidAmount,
+                nonceForBid
+            )
         );
         require(
             _hashTypedDataV4(structHash).recover(signatureForBid) == bidding.bidder,

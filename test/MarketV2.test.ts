@@ -243,7 +243,8 @@ describe('HinataMarketV2', function () {
       );
       const bidSignature = await getBidSignature(
         market,
-        BigNumber.from('1'),
+        alice,
+        BigNumber.from('0'),
         bob,
         price,
         BigNumber.from('0'),
@@ -294,7 +295,8 @@ describe('HinataMarketV2', function () {
       );
       const bidSignature = await getBidSignature(
         market,
-        BigNumber.from('1'),
+        alice,
+        BigNumber.from('0'),
         bob,
         price,
         BigNumber.from('0'),
@@ -364,7 +366,6 @@ const getListingSignature = async (
       'ListingMessage(address seller,address payToken,uint128 price,uint128 reservePrice,uint64 startTime,uint64 duration,uint64 expireTime,uint64 quantity,uint8 listingType,address[] collections,uint256[] tokenIds,uint256[] tokenAmounts,uint256 nonce)',
     ),
   );
-
   const data = keccak256(
     solidityPack(
       ['bytes1', 'bytes1', 'bytes32', 'bytes32'],
@@ -420,7 +421,8 @@ const getListingSignature = async (
 
 const getBidSignature = async (
   market: Contract,
-  id: BigNumber,
+  seller: Wallet,
+  listingNonce: BigNumber,
   bidder: Wallet,
   bidAmount: BigNumber,
   nonce: BigNumber,
@@ -442,7 +444,9 @@ const getBidSignature = async (
     ),
   );
   const message = keccak256(
-    toUtf8Bytes('BidMessage(uint256 id,address bidder,uint256 amount,uint256 nonce)'),
+    toUtf8Bytes(
+      'BidMessage(address seller,uint256 listingNonce,address bidder,uint256 amount,uint256 nonce)',
+    ),
   );
   const data = keccak256(
     solidityPack(
@@ -453,8 +457,8 @@ const getBidSignature = async (
         separator,
         keccak256(
           defaultAbiCoder.encode(
-            ['bytes32', 'uint256', 'address', 'uint256', 'uint256'],
-            [message, id, bidder.address, bidAmount, nonce],
+            ['bytes32', 'address', 'uint256', 'address', 'uint256', 'uint256'],
+            [message, seller.address, listingNonce, bidder.address, bidAmount, nonce],
           ),
         ),
       ],

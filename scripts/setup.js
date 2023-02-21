@@ -1,4 +1,3 @@
-const { utils } = require('ethers');
 const { ethers } = require('hardhat');
 
 async function main() {
@@ -81,6 +80,7 @@ async function main() {
 
   const marketplace = await HinataMarketplaceFactory.attach(marketplaceAddr);
   await marketplace.setAcceptPayToken(wethAddr, true, params);
+  await marketplace.setMarketFee(150);
 }
 
 main()
