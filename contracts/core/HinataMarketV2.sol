@@ -72,11 +72,13 @@ contract HinataMarketV2 is
         address[] collections;
         uint256[] tokenIds;
         uint256[] tokenAmounts;
+        uint256 nonce;
     }
 
     struct Bidding {
         address bidder;
         uint256 bidAmount;
+        uint256 nonce;
     }
 
     modifier onlyAdmin() {
@@ -84,9 +86,9 @@ contract HinataMarketV2 is
         _;
     }
 
-    modifier onlyValidListing(Listing memory listing, uint256 nonce) {
+    modifier onlyValidListing(Listing memory listing) {
         require(listing.expireTime > block.timestamp, "MarketV2: ALREADY_EXPIRED");
-        require(!usedNonces[listing.seller][nonce], "MarketV2: USED_SIGNATURE");
+        require(!usedNonces[listing.seller][listing.nonce], "MarketV2: USED_SIGNATURE");
         require(acceptPayTokens[listing.payToken], "MarketV2: NOT_WHITELISTED_TOKEN");
         require(listing.reservePrice >= listing.price, "MarketV2: RESERVE_PRICE_LOW");
         require(listing.collections.length <= limitCount, "MarketV2: MORE_THAN_LIMIT");
@@ -124,11 +126,11 @@ contract HinataMarketV2 is
 
     function _authorizeUpgrade(address) internal override onlyAdmin {}
 
-    function purchaseListing(
-        Listing memory listing,
-        uint256 nonce,
-        bytes memory signature
-    ) external onlyValidListing(listing, nonce) nonReentrant {
+    function purchaseListing(Listing memory listing, bytes memory signature)
+        external
+        onlyValidListing(listing)
+        nonReentrant
+    {
         require(listing.seller != msg.sender, "MarketV2: IS_SELLER");
 
         if (
@@ -144,7 +146,7 @@ contract HinataMarketV2 is
             );
         }
 
-        _checkListingSignature(listing, nonce, signature);
+        _checkListingSignature(listing, signature);
 
         _transferNFTs(listing, listing.seller, msg.sender);
         _proceedRoyalty(
@@ -162,13 +164,11 @@ contract HinataMarketV2 is
     function completeAuction(
         Listing memory listing,
         Bidding memory bidding,
-        uint256 nonce,
-        uint256 nonceForBid,
         bytes memory signature,
         bytes memory signatureForBid
-    ) external onlyValidListing(listing, nonce) nonReentrant {
+    ) external onlyValidListing(listing) nonReentrant {
         require(listing.seller == msg.sender, "MarketV2: IS_NOT_SELLER");
-        require(!usedNonces[bidding.bidder][nonceForBid], "MarketV2: USED_NONCE_FOR_BID");
+        require(!usedNonces[bidding.bidder][bidding.nonce], "MarketV2: USED_NONCE_FOR_BID");
         require(bidding.bidder != address(0), "MarketV2: NO_ACTIVE_BID");
 
         if (
@@ -178,23 +178,23 @@ contract HinataMarketV2 is
             revert("MarketV2: ONLY_FOR_AUCTION");
         }
 
-        _checkListingSignature(listing, nonce, signature);
+        _checkListingSignature(listing, signature);
 
         bytes32 structHash = keccak256(
             abi.encode(
                 BID_MESSAGE,
                 listing.seller,
-                nonce,
+                listing.nonce,
                 bidding.bidder,
                 bidding.bidAmount,
-                nonceForBid
+                bidding.nonce
             )
         );
         require(
             _hashTypedDataV4(structHash).recover(signatureForBid) == bidding.bidder,
             "MarketV2: INVALID_SIGNATURE_FOR_BID"
         );
-        usedNonces[bidding.bidder][nonceForBid] = true;
+        usedNonces[bidding.bidder][bidding.nonce] = true;
 
         _transferNFTs(listing, listing.seller, bidding.bidder);
         _proceedRoyalty(
@@ -264,11 +264,7 @@ contract HinataMarketV2 is
         return true;
     }
 
-    function _checkListingSignature(
-        Listing memory listing,
-        uint256 nonce,
-        bytes memory signature
-    ) private {
+    function _checkListingSignature(Listing memory listing, bytes memory signature) private {
         bytes32 structHash = keccak256(
             abi.encode(
                 LISTING_MESSAGE,
@@ -284,14 +280,14 @@ contract HinataMarketV2 is
                 listing.collections,
                 listing.tokenIds,
                 listing.tokenAmounts,
-                nonce
+                listing.nonce
             )
         );
         require(
             _hashTypedDataV4(structHash).recover(signature) == listing.seller,
             "MarketV2: INVALID_SIGNATURE"
         );
-        usedNonces[listing.seller][nonce] = true;
+        usedNonces[listing.seller][listing.nonce] = true;
     }
 
     function _transferNFTs(

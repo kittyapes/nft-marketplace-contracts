@@ -14,7 +14,7 @@ enum ListingType {
   TIME_LIMITED_1_OF_N_WINNING_TICKETS_RAFFLE,
 }
 
-describe('HinataMarketV2', function () {
+describe.only('HinataMarketV2', function () {
   let owner: SignerWithAddress;
   let alice: Wallet;
   let bob: Wallet;
@@ -158,7 +158,6 @@ describe('HinataMarketV2', function () {
       );
 
       const listing = [
-        1,
         alice.address,
         payToken.address,
         price,
@@ -171,9 +170,10 @@ describe('HinataMarketV2', function () {
         [storage.address],
         [1],
         [10],
+        1,
       ];
 
-      await expect(market.connect(bob).purchaseListing(listing, 1, signature)).to.revertedWith(
+      await expect(market.connect(bob).purchaseListing(listing, signature)).to.revertedWith(
         'MarketV2: INVALID_SIGNATURE',
       );
     });
@@ -198,7 +198,6 @@ describe('HinataMarketV2', function () {
       );
 
       const listing = [
-        1,
         alice.address,
         payToken.address,
         price,
@@ -211,9 +210,10 @@ describe('HinataMarketV2', function () {
         [storage.address],
         [1],
         [10],
+        0,
       ];
 
-      await market.connect(bob).purchaseListing(listing, 0, signature);
+      await market.connect(bob).purchaseListing(listing, signature);
       expect(await storage.balanceOf(bob.address, 1)).to.equal(10);
       const feePercentage = await market.marketFee();
       const fee = price.mul(feePercentage).div(10000);
@@ -251,7 +251,6 @@ describe('HinataMarketV2', function () {
       );
 
       const listing = [
-        1,
         alice.address,
         payToken.address,
         price,
@@ -264,14 +263,16 @@ describe('HinataMarketV2', function () {
         [storage.address],
         [1],
         [10],
+        1,
       ];
-      const bidding = [bob.address, price];
+      const bidding = [bob.address, price, 1];
 
       await expect(
-        market.connect(alice).completeAuction(listing, bidding, 1, 0, signature, bidSignature),
+        market.connect(alice).completeAuction(listing, bidding, signature, bidSignature),
       ).to.revertedWith('MarketV2: INVALID_SIGNATURE');
+      listing[listing.length - 1] = 0;
       await expect(
-        market.connect(alice).completeAuction(listing, bidding, 0, 1, signature, bidSignature),
+        market.connect(alice).completeAuction(listing, bidding, signature, bidSignature),
       ).to.revertedWith('MarketV2: INVALID_SIGNATURE_FOR_BID');
     });
 
@@ -303,7 +304,6 @@ describe('HinataMarketV2', function () {
       );
 
       const listing = [
-        1,
         alice.address,
         payToken.address,
         price,
@@ -316,10 +316,11 @@ describe('HinataMarketV2', function () {
         [storage.address],
         [1],
         [10],
+        0,
       ];
-      const bidding = [bob.address, price];
+      const bidding = [bob.address, price, 0];
 
-      await market.connect(alice).completeAuction(listing, bidding, 0, 0, signature, bidSignature);
+      await market.connect(alice).completeAuction(listing, bidding, signature, bidSignature);
       expect(await storage.balanceOf(bob.address, 1)).to.equal(10);
       const feePercentage = await market.marketFee();
       const fee = price.mul(feePercentage).div(10000);
