@@ -60,7 +60,6 @@ contract HinataMarketV2 is
     }
 
     struct Listing {
-        uint256 id;
         address seller;
         address payToken;
         uint128 price;
