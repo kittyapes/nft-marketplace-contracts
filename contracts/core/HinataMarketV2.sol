@@ -30,12 +30,12 @@ contract HinataMarketV2 is
 
     bytes32 private constant LISTING_MESSAGE =
         keccak256(
-            "ListingMessage(address seller,address payToken,uint128 price,uint128 reservePrice,uint64 startTime,uint64 duration,uint64 expireTime,uint64 quantity,uint8 listingType,address[] collections,uint256[] tokenIds,uint256[] tokenAmounts,uint256 nonce)"
+            "Listing(address seller,address payToken,uint128 price,uint128 reservePrice,uint64 startTime,uint64 duration,uint64 expireTime,uint64 quantity,uint8 listingType,address[] collections,uint256[] tokenIds,uint256[] tokenAmounts,uint256 nonce)"
         );
 
-    bytes32 private constant BID_MESSAGE =
+    bytes32 private constant BIDDING_MESSAGE =
         keccak256(
-            "BidMessage(address seller,uint256 listingNonce,address bidder,uint256 amount,uint256 nonce)"
+            "Bidding(address seller,uint256 listingNonce,address bidder,uint256 amount,uint256 nonce)"
         );
 
     //Values 0-10,000 map to 0%-100%
@@ -182,7 +182,7 @@ contract HinataMarketV2 is
 
         bytes32 structHash = keccak256(
             abi.encode(
-                BID_MESSAGE,
+                BIDDING_MESSAGE,
                 listing.seller,
                 listing.nonce,
                 bidding.bidder,
@@ -277,9 +277,9 @@ contract HinataMarketV2 is
                 listing.expireTime,
                 listing.quantity,
                 listing.listingType,
-                listing.collections,
-                listing.tokenIds,
-                listing.tokenAmounts,
+                keccak256(abi.encodePacked(listing.collections)),
+                keccak256(abi.encodePacked(listing.tokenIds)),
+                keccak256(abi.encodePacked(listing.tokenAmounts)),
                 listing.nonce
             )
         );
