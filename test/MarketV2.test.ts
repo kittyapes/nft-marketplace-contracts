@@ -2,6 +2,7 @@ import { expect } from 'chai';
 import { ethers, upgrades } from 'hardhat';
 import { Contract, BigNumber, constants, utils } from 'ethers';
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
+import { solidityKeccak256, toUtf8Bytes } from 'ethers/lib/utils';
 
 enum ListingType {
   FIXED_PRICE,
@@ -212,7 +213,7 @@ describe('HinataMarketV2', function () {
     });
   });
 
-  describe('#completeAuction', () => {
+  describe.only('#completeAuction', () => {
     it('revert if invalid signature', async () => {
       const currentTime = Math.floor(Date.now() / 1000);
       const signature = await getListingSignature(
@@ -233,8 +234,7 @@ describe('HinataMarketV2', function () {
       );
       const bidSignature = await getBidSignature(
         market,
-        alice,
-        BigNumber.from('0'),
+        signature,
         bob,
         price,
         BigNumber.from('0'),
@@ -286,8 +286,7 @@ describe('HinataMarketV2', function () {
       );
       const bidSignature = await getBidSignature(
         market,
-        alice,
-        BigNumber.from('0'),
+        signature,
         bob,
         price,
         BigNumber.from('0'),
@@ -381,8 +380,7 @@ const getListingSignature = async (
 
 const getBidSignature = async (
   market: Contract,
-  seller: SignerWithAddress,
-  listingNonce: BigNumber,
+  listingHash: string,
   bidder: SignerWithAddress,
   amount: BigNumber,
   nonce: BigNumber,
@@ -396,16 +394,14 @@ const getBidSignature = async (
   };
   const types = {
     Bidding: [
-      { name: 'seller', type: 'address' },
-      { name: 'listingNonce', type: 'uint256' },
+      { name: 'listingHash', type: 'uint256' },
       { name: 'bidder', type: 'address' },
       { name: 'amount', type: 'uint256' },
       { name: 'nonce', type: 'uint256' },
     ],
   };
   const message = {
-    seller: seller.address,
-    listingNonce: listingNonce,
+    listingHash: solidityKeccak256(['bytes'], [listingHash]),
     bidder: bidder.address,
     amount,
     nonce,

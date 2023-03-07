@@ -34,9 +34,7 @@ contract HinataMarketV2 is
         );
 
     bytes32 private constant BIDDING_MESSAGE =
-        keccak256(
-            "Bidding(address seller,uint256 listingNonce,address bidder,uint256 amount,uint256 nonce)"
-        );
+        keccak256("Bidding(uint256 listingHash,address bidder,uint256 amount,uint256 nonce)");
 
     //Values 0-10,000 map to 0%-100%
     uint256 private constant MAX_DURATION = 120 * 86400;
@@ -183,8 +181,7 @@ contract HinataMarketV2 is
         bytes32 structHash = keccak256(
             abi.encode(
                 BIDDING_MESSAGE,
-                listing.seller,
-                listing.nonce,
+                keccak256(signature),
                 bidding.bidder,
                 bidding.bidAmount,
                 bidding.nonce
