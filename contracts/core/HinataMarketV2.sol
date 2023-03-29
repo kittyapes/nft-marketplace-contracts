@@ -36,6 +36,11 @@ contract HinataMarketV2 is
     bytes32 private constant BIDDING_MESSAGE =
         keccak256("Bidding(uint256 listingHash,address bidder,uint256 amount,uint256 nonce)");
 
+    bytes32 private constant OFFER_MESSAGE =
+        keccak256(
+            "Offer(address collection,uint256 tokenId,uint256 tokenAmount,address bidder,address payToken,uint256 amount,uint256 expireTime,uint256 nonce)"
+        );
+
     //Values 0-10,000 map to 0%-100%
     uint256 private constant MAX_DURATION = 120 * 86400;
     uint256 public marketFee;
@@ -76,6 +81,17 @@ contract HinataMarketV2 is
     struct Bidding {
         address bidder;
         uint256 bidAmount;
+        uint256 nonce;
+    }
+
+    struct Offer {
+        address collection;
+        uint256 tokenId;
+        uint256 tokenAmount;
+        address bidder;
+        address payToken;
+        uint256 bidAmount;
+        uint256 expireTime;
         uint256 nonce;
     }
 
@@ -146,7 +162,13 @@ contract HinataMarketV2 is
 
         _checkListingSignature(listing, signature);
 
-        _transferNFTs(listing, listing.seller, msg.sender);
+        _transferNFTs(
+            listing.collections,
+            listing.tokenIds,
+            listing.tokenAmounts,
+            listing.seller,
+            msg.sender
+        );
         _proceedRoyalty(
             listing.seller,
             msg.sender,
@@ -157,6 +179,50 @@ contract HinataMarketV2 is
         );
 
         emit ListingPurchased(listing, msg.sender);
+    }
+
+    function acceptOffer(Offer memory offer, bytes memory signature) external {
+        require(offer.expireTime > block.timestamp, "MarketV2: ALREADY_EXPIRED");
+        require(!usedNonces[offer.bidder][offer.nonce], "MarketV2: USED_SIGNATURE");
+        require(acceptPayTokens[offer.payToken], "MarketV2: NOT_WHITELISTED_TOKEN");
+        require(offer.bidder != msg.sender, "MarketV2: IS_BIDDER");
+        require(offer.bidAmount > 0, "MarketV2: ZERO_PRICE");
+
+        bytes32 structHash = keccak256(
+            abi.encode(
+                OFFER_MESSAGE,
+                offer.collection,
+                offer.tokenId,
+                offer.tokenAmount,
+                offer.bidder,
+                offer.payToken,
+                offer.bidAmount,
+                offer.expireTime,
+                offer.nonce
+            )
+        );
+        require(
+            _hashTypedDataV4(structHash).recover(signature) == offer.bidder,
+            "MarketV2: INVALID_SIGNATURE_FOR_OFFER"
+        );
+        usedNonces[offer.bidder][offer.nonce] = true;
+
+        address[] memory collections = new address[](1);
+        collections[0] = offer.collection;
+        uint256[] memory tokenIds = new uint256[](1);
+        tokenIds[0] = offer.tokenId;
+        uint256[] memory tokenAmounts = new uint256[](1);
+        tokenAmounts[0] = offer.tokenAmount;
+
+        _transferNFTs(collections, tokenIds, tokenAmounts, msg.sender, offer.bidder);
+        _proceedRoyalty(
+            msg.sender,
+            offer.bidder,
+            offer.payToken,
+            offer.bidAmount,
+            collections,
+            tokenAmounts
+        );
     }
 
     function completeAuction(
@@ -193,7 +259,13 @@ contract HinataMarketV2 is
         );
         usedNonces[bidding.bidder][bidding.nonce] = true;
 
-        _transferNFTs(listing, listing.seller, bidding.bidder);
+        _transferNFTs(
+            listing.collections,
+            listing.tokenIds,
+            listing.tokenAmounts,
+            listing.seller,
+            bidding.bidder
+        );
         _proceedRoyalty(
             listing.seller,
             bidding.bidder,
@@ -288,37 +360,34 @@ contract HinataMarketV2 is
     }
 
     function _transferNFTs(
-        Listing memory listing,
+        address[] memory collections,
+        uint256[] memory tokenIds,
+        uint256[] memory tokenAmounts,
         address from,
         address to
-    ) internal returns (uint256[] memory tokenAmounts) {
+    ) internal returns (uint256[] memory tokenAmounts_) {
         require(
-            listing.collections.length == listing.tokenIds.length &&
-                listing.collections.length == listing.tokenAmounts.length,
+            collections.length == tokenIds.length && collections.length == tokenAmounts.length,
             "MarketV2: INVALID_ARGUMENTS"
         );
 
-        tokenAmounts = new uint256[](listing.collections.length);
-        for (uint256 i; i < listing.tokenIds.length; i += 1) {
-            uint8 cType = factory.getType(listing.collections[i]);
+        tokenAmounts_ = new uint256[](collections.length);
+        for (uint256 i; i < tokenIds.length; i += 1) {
+            uint8 cType = factory.getType(collections[i]);
             require(cType > 0, "MarketV2: NOT_NFT_CONTRACT");
 
             if (cType == 1) {
-                IERC721Upgradeable(listing.collections[i]).safeTransferFrom(
-                    from,
-                    to,
-                    listing.tokenIds[i]
-                );
-                tokenAmounts[i] = 1;
+                IERC721Upgradeable(collections[i]).safeTransferFrom(from, to, tokenIds[i]);
+                tokenAmounts_[i] = 1;
             } else {
-                IERC1155Upgradeable(listing.collections[i]).safeTransferFrom(
+                IERC1155Upgradeable(collections[i]).safeTransferFrom(
                     from,
                     to,
-                    listing.tokenIds[i],
-                    listing.tokenAmounts[i],
+                    tokenIds[i],
+                    tokenAmounts[i],
                     ""
                 );
-                tokenAmounts[i] = listing.tokenAmounts[i];
+                tokenAmounts_[i] = tokenAmounts[i];
             }
         }
     }

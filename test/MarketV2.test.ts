@@ -2,7 +2,7 @@ import { expect } from 'chai';
 import { ethers, upgrades } from 'hardhat';
 import { Contract, BigNumber, constants, utils } from 'ethers';
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
-import { solidityKeccak256, toUtf8Bytes } from 'ethers/lib/utils';
+import { solidityKeccak256 } from 'ethers/lib/utils';
 
 enum ListingType {
   FIXED_PRICE,
@@ -213,7 +213,72 @@ describe('HinataMarketV2', function () {
     });
   });
 
-  describe.only('#completeAuction', () => {
+  describe('#acceptOffer', () => {
+    it('revert if invalid signature', async () => {
+      const currentTime = Math.floor(Date.now() / 1000);
+      const offer = [
+        storage.address,
+        1,
+        10,
+        bob.address,
+        payToken.address,
+        price,
+        BigNumber.from(currentTime).add(10000),
+        0,
+      ];
+
+      const signature = await getOfferSignature(
+        market,
+        storage.address,
+        BigNumber.from('1'),
+        BigNumber.from('10'),
+        bob,
+        payToken,
+        price,
+        BigNumber.from(currentTime).add(10000),
+        BigNumber.from('1'),
+      );
+
+      await expect(market.connect(alice).acceptOffer(offer, signature)).to.revertedWith(
+        'MarketV2: INVALID_SIGNATURE_FOR_OFFER',
+      );
+    });
+
+    it('should accept offer', async () => {
+      const currentTime = Math.floor(Date.now() / 1000);
+      const offer = [
+        storage.address,
+        1,
+        10,
+        bob.address,
+        payToken.address,
+        price,
+        BigNumber.from(currentTime).add(10000),
+        0,
+      ];
+
+      const signature = await getOfferSignature(
+        market,
+        storage.address,
+        BigNumber.from('1'),
+        BigNumber.from('10'),
+        bob,
+        payToken,
+        price,
+        BigNumber.from(currentTime).add(10000),
+        BigNumber.from('0'),
+      );
+
+      await market.connect(alice).acceptOffer(offer, signature);
+      expect(await storage.balanceOf(bob.address, 1)).to.equal(10);
+      const feePercentage = await market.marketFee();
+      const fee = price.mul(feePercentage).div(10000);
+      expect(await payToken.balanceOf(alice.address)).to.equal(price.sub(fee));
+      expect(await payToken.balanceOf(owner.address)).to.equal(fee);
+    });
+  });
+
+  describe('#completeAuction', () => {
     it('revert if invalid signature', async () => {
       const currentTime = Math.floor(Date.now() / 1000);
       const signature = await getListingSignature(
@@ -376,6 +441,50 @@ const getListingSignature = async (
   };
 
   return await seller._signTypedData(domain, types, message);
+};
+
+const getOfferSignature = async (
+  market: Contract,
+  collection: string,
+  tokenId: BigNumber,
+  tokenAmount: BigNumber,
+  bidder: SignerWithAddress,
+  payToken: Contract,
+  amount: BigNumber,
+  expireTime: BigNumber,
+  nonce: BigNumber,
+) => {
+  const { chainId } = await ethers.provider.getNetwork();
+  const domain = {
+    name: 'HinataMarketV2',
+    version: '1.0',
+    chainId,
+    verifyingContract: market.address,
+  };
+  const types = {
+    Offer: [
+      { name: 'collection', type: 'address' },
+      { name: 'tokenId', type: 'uint256' },
+      { name: 'tokenAmount', type: 'uint256' },
+      { name: 'bidder', type: 'address' },
+      { name: 'payToken', type: 'address' },
+      { name: 'amount', type: 'uint256' },
+      { name: 'expireTime', type: 'uint256' },
+      { name: 'nonce', type: 'uint256' },
+    ],
+  };
+  const message = {
+    collection,
+    tokenId,
+    tokenAmount,
+    bidder: bidder.address,
+    payToken: payToken.address,
+    amount,
+    expireTime,
+    nonce,
+  };
+
+  return await bidder._signTypedData(domain, types, message);
 };
 
 const getBidSignature = async (
