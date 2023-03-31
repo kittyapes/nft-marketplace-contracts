@@ -52,6 +52,7 @@ contract HinataMarketV2 is
     mapping(address => mapping(uint256 => bool)) public usedNonces;
 
     event ListingPurchased(Listing listing, address buyer);
+    event OfferAccepted(Offer offer, address seller);
 
     enum ListingType {
         FIXED_PRICE,
@@ -223,6 +224,8 @@ contract HinataMarketV2 is
             collections,
             tokenAmounts
         );
+
+        emit OfferAccepted(offer, msg.sender);
     }
 
     function completeAuction(
