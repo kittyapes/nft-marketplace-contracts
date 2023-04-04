@@ -252,12 +252,7 @@ contract HinataMarketplace is
         ) {
             revert("HinataMarket: NOT_FOR_AUCTION");
         }
-        if (listing.listingType == ListingType.TIME_LIMITED_PRICE_PER_TICKET_RAFFLE) {
-            require(
-                block.timestamp < listing.startTime + listing.duration,
-                "HinataMarket: STILL_ACTIVE"
-            );
-        }
+        require(_isActiveListing(listingId), "HinataMarket: INACTIVE_LISTING");
         _transferNFTs(listingId, address(this), msg.sender);
 
         _proceedRoyalty(
